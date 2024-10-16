@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/Deehjay/demetorbot/issues"
   },
-  "homepage": "https://github.com/Deehjay/demetorbot#readme"
+  "homepage": "https://github.com/Deehjay/demetorbot#readme",
+  "dependencies": {
+    "discord.js": "^14.16.3"
+  }
 }
