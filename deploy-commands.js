@@ -1,45 +1,49 @@
-const { SlashCommandBuilder } = require('discord.js');
-const axios = require('axios');
+require('dotenv').config();
+const { REST, Routes } = require('discord.js');
+const clientId = process.env.CLIENT_ID;
+const guildId = process.env.GUILD_ID;
+const discordToken = process.env.DISCORD_TOKEN;
+const fs = require('node:fs');
+const path = require('node:path');
 
-// Replace with your SerpAPI key
-const serpToken = process.env.SERP_API_KEY;
+const commands = [];
+// Grab all the command folders from the commands directory you created earlier
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
 
-module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('beans')
-		.setDescription('Find Ben some beans!'),
-	async execute(interaction) {
-		// Defer the reply as API requests can take time
-		await interaction.deferReply();
-
-		// Fetch a random image from SerpAPI
-		async function getRandomImage(query) {
-			const serpApiUrl = `https://serpapi.com/search.json?engine=google_images&q=${query}&api_key=${serpToken}`;
-			try {
-				const response = await axios.get(serpApiUrl);
-				const images = response.data.images_results;
-
-				if (images && images.length > 0) {
-					// Pick a random image from the results
-					const randomImage = images[Math.floor(Math.random() * images.length)].original;
-					return randomImage;
-				} else {
-					return null;
-				}
-			} catch (error) {
-				console.error('Error fetching image from SerpAPI:', error);
-				return null;
-			}
-		}
-
-		// Fetch a random image of 'baked beans'
-		const imageUrl = await getRandomImage('baked beans');
-
-		// Edit the deferred reply with the image or an error message
-		if (imageUrl) {
-			await interaction.editReply(imageUrl); // Sends the random image URL
+for (const folder of commandFolders) {
+	// Grab all the command files from the commands directory you created earlier
+	const commandsPath = path.join(foldersPath, folder);
+	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+	// Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
+	for (const file of commandFiles) {
+		const filePath = path.join(commandsPath, file);
+		const command = require(filePath);
+		if ('data' in command && 'execute' in command) {
+			commands.push(command.data.toJSON());
 		} else {
-			await interaction.editReply('Could not find any beans!');
+			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
 		}
-	},
-};
+	}
+}
+
+// Construct and prepare an instance of the REST module
+const rest = new REST().setToken(discordToken);
+
+// and deploy your commands!
+(async () => {
+	try {
+		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+		// The put method is used to fully refresh all commands in the guild with the current set
+		const data = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId),
+			{ body: commands },
+		);
+
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+	} catch (error) {
+		// And of course, make sure you catch and log any errors!
+		console.error(error);
+	}
+})();
