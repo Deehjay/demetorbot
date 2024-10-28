@@ -73,7 +73,9 @@ module.exports = {
       await interaction.reply({ embeds: [memberListEmbed] });
     } catch (err) {
       console.error(err);
-      interaction.reply("There was an error retrieving the member list.");
+      interaction.reply(
+        `There was an error retrieving the member list:\n``${err}```
+      );
     }
   },
 };
