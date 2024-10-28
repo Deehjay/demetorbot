@@ -74,7 +74,7 @@ module.exports = {
     } catch (err) {
       console.error(err);
       interaction.reply(
-        `There was an error retrieving the member list:\n``${err}```
+        "There was an error retrieving the member list:\n" + err
       );
     }
   },
