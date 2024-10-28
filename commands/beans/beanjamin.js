@@ -8,9 +8,7 @@ module.exports = {
     .setName("beans")
     .setDescription("Find Ben some beans!"),
   async execute(interaction) {
-    return interaction.reply(
-      "COMMAND IS UNDER MAINTENANCE. DO NOT FEAR, BEN WILL BE ABLE TO ENJOY HIS BEANS AGAIN SOON! :)"
-    );
+    return interaction.reply("@Zmokkyy do your job 🫘");
     // Fetch a random image from SerpAPI
     // async function getRandomImage(query) {
     // 	const serpApiUrl = `https://serpapi.com/search.json?engine=google_images&q=${query}&api_key=${serpToken}`;
