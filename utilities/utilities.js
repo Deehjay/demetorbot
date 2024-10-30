@@ -1,5 +1,6 @@
 const { Storage } = require("@google-cloud/storage");
 const fetch = require("node-fetch");
+require("dotenv").config();
 
 const demetoriIcon =
   "https://cdn.discordapp.com/icons/1297613705843835065/5d43638e0d29a60cb4d21079cedb0230.webp?size=240";
@@ -8,7 +9,10 @@ const gearExample =
   "https://storage.googleapis.com/demetorbot/gear_1730313823001.png";
 
 // Initialize Google Cloud Storage and specify the bucket name
-const storage = new Storage();
+const googleCredentials = JSON.parse(
+  Buffer.from(process.env.GOOGLE_CREDENTIALS, "base64")
+);
+const storage = new Storage({ credentials: googleCredentials });
 const bucketName = "demetorbot"; // Replace with your bucket name
 const bucket = storage.bucket(bucketName);
 
