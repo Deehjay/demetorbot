@@ -130,7 +130,7 @@ module.exports = {
           discordDisplayName: member.globalName,
           inGameName: newNickname,
           weapons: weaponRole.name,
-          gear: "",
+          gear: { original: "", shortened: "", lastUpdated: "" },
         });
 
         // Save the new member to the database
