@@ -6,7 +6,8 @@ const memberSchema = new mongoose.Schema({
   discordDisplayName: String,
   inGameName: String,
   weapons: String,
-  gear: String,
+  gear: { original: String, shortened: String, lastUpdated: String },
+  wishlist: Array,
 });
 
 module.exports = mongoose.model("Members", memberSchema);

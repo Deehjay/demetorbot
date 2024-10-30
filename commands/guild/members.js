@@ -5,6 +5,7 @@ const {
   demetoriIcon,
 } = require("../../utilities/utilities");
 const Members = require("../../models/Members");
+require("dotenv").config();
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -49,10 +50,10 @@ module.exports = {
 
         membersByWeapons[weaponCombination].forEach((member) => {
           memberListDescription += `- ${member.inGameName}`;
-          if (member.gear) {
-            memberListDescription += ` - [Gear](${member.gear})\n`;
+          if (member.gear.original && member.gear.shortened) {
+            memberListDescription += ` | [${member.gear.lastUpdated}](${member.gear.shortened})\n`;
           } else {
-            memberListDescription += ` - No link provided for gear\n`;
+            memberListDescription += ` | No gear\n`;
           }
         });
 
