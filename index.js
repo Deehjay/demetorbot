@@ -12,7 +12,12 @@ const discordToken = process.env.DISCORD_TOKEN;
 const mongoose = require("mongoose");
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions,
+  ],
   partials: [Partials.Channel],
 });
 const mongoURI = process.env.MONGO_URI;
