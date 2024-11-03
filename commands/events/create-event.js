@@ -5,8 +5,18 @@ const {
   ButtonBuilder,
   ButtonStyle,
 } = require("discord.js");
-const { demetoriIcon } = require("../../utilities/utilities");
-const { eventNameChoices, eventTypeChoices } = require("../../utilities/data");
+const {
+  demetoriIcon,
+  logCommandIssuer,
+  hasAdminPrivileges,
+} = require("../../utilities/utilities");
+const {
+  eventNameChoices,
+  eventTypeChoices,
+  eventImages,
+  backupEmbedImage,
+  eventThumbnails,
+} = require("../../utilities/data");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,7 +34,7 @@ module.exports = {
         .setName("event_name")
         .setDescription("Name of the event")
         .setRequired(true)
-        .addChoices(...eventNameChoices)
+        .setAutocomplete(true)
     )
     .addStringOption((option) =>
       option
@@ -40,22 +50,33 @@ module.exports = {
         )
         .setRequired(true)
     ),
+  async autocomplete(interaction) {
+    const focusedValue = interaction.options.getFocused().toLowerCase();
+    const filtered = eventNameChoices.filter((choice) =>
+      choice.name.toLowerCase().includes(focusedValue)
+    );
+
+    await interaction.respond(
+      filtered.slice(0, 25).map((choice) => ({
+        name: choice.name,
+        value: choice.value,
+      }))
+    );
+  },
   async execute(interaction) {
-    // Log who triggered the command
-    logCommandIssuer(interaction, "update-gear");
+    logCommandIssuer(interaction, "create-event");
     const isAdmin = await hasAdminPrivileges(interaction);
-    // Check if the executing user has admin privileges
     if (!isAdmin) {
       return interaction.reply(
         "You do not have permission to use this command."
       );
     }
+
     const eventType = interaction.options.getString("event_type");
     const eventName = interaction.options.getString("event_name");
     const eventDate = interaction.options.getString("event_date");
     const eventTime = interaction.options.getString("event_time");
 
-    // Validate the date format (DD/MM/YYYY)
     const dateFormat = /^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})$/;
     if (!dateFormat.test(eventDate)) {
       return interaction.reply({
@@ -65,10 +86,7 @@ module.exports = {
       });
     }
 
-    // Extract day, month, and year
     const [day, month, year] = eventDate.split("/").map(Number);
-
-    // Validate time format (HH:MM)
     const timeFormat = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeFormat.test(eventTime)) {
       return interaction.reply({
@@ -78,13 +96,8 @@ module.exports = {
       });
     }
 
-    // Extract hours and minutes
     const [hours, minutes] = eventTime.split(":").map(Number);
-
-    // Create a Date object using the date and time provided
     const dateObject = new Date(year, month - 1, day, hours, minutes);
-
-    // Check if the date and time are in the future
     const now = new Date();
     if (dateObject <= now) {
       return interaction.reply({
@@ -93,47 +106,35 @@ module.exports = {
       });
     }
 
-    // Calculate the Unix timestamp
     const unixTimestamp = Math.floor(dateObject.getTime() / 1000);
-
-    const eventThumbnails = {
-      "World Boss":
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/WM_FB_ElderTurncoat_Target.png",
-      Riftstone:
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/riftstone.png",
-      Boonstone:
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/boonstone1.png",
-      Siege:
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/castle.png",
-      "Guild Bosses":
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/guild-base.png",
-      "Arch Boss":
-        "https://throne-and-liberty.interactivemap.app/admin/assets/icons/archboss.png",
-    };
-
     const thumbnailUrl = eventThumbnails[eventType] || demetoriIcon;
+    const eventImageUrl = eventImages[eventType] || backupEmbedImage;
 
-    // Create the event embed
     const eventEmbed = new EmbedBuilder()
       .setColor("#00ff00")
-      .setTitle(`${eventType} - ${eventName}`)
+      .setTitle(`⚔️ ${eventName} ⚔️`)
       .setDescription(
-        "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nIf you will be absent, please post a message in the absence text channel."
+        "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nThis is a mandatory event. If you will be absent, please respond to the bot's DM with a reason for absence."
       )
       .setThumbnail(thumbnailUrl)
       .setAuthor({ name: "Deme", iconURL: demetoriIcon })
       .addFields({
         name: "🕰️ Time:",
         value: `${eventDate} // <t:${unixTimestamp}:R>`,
-      });
+      })
+      .setImage(eventImageUrl);
 
-    // Track attendance counts and user responses
     let attendingCount = 0;
     let absentCount = 0;
-    const userResponses = {}; // Track each user's response
-    const notAttendingReasons = []; // Track reasons for "not attending"
+    const userResponses = [];
+    const dmCollectors = new Map();
+    const memberRole = interaction.guild.roles.cache.find(
+      (role) => role.name === "Member"
+    );
+    const memberMention = memberRole
+      ? `<@&${memberRole.id}> **NEW EVENT:**\n`
+      : "";
 
-    // Initialize buttons for RSVP
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("attend_event")
@@ -149,17 +150,15 @@ module.exports = {
         .setStyle(ButtonStyle.Primary)
     );
 
-    // Send the initial event embed and buttons
     const message = await interaction.reply({
+      // content: memberMention,
       embeds: [eventEmbed],
       components: [row],
       fetchReply: true,
     });
 
-    // Calculate duration for the collector in milliseconds
     const collectorDuration = dateObject.getTime() - now.getTime();
 
-    // Set up a button interaction collector
     const collector = message.createMessageComponentCollector({
       time: collectorDuration,
     });
@@ -170,101 +169,85 @@ module.exports = {
       const guildMember = interaction.guild.members.cache.get(userId);
       const userNickname = guildMember?.nickname || i.user.username;
 
-      // Handle the "Responses" button click
       if (i.customId === "responses") {
-        const attendingUsers =
-          Object.keys(userResponses)
-            .filter((userId) => userResponses[userId] === "attending")
-            .map((userId) => `${userId}`)
+        const attendingUsersString =
+          userResponses
+            .filter((entry) => entry.status === "attending")
+            .map((entry) => `${entry.name}`)
             .join("\n") || "No one yet";
-        const notAttendingUsers =
-          notAttendingReasons.map((entry) => `${entry.name}`).join("\n") ||
-          "No one yet";
+
+        const notAttendingUsersString =
+          userResponses
+            .filter((entry) => entry.status === "not_attending")
+            .map((entry) => `${entry.name}`)
+            .join("\n") || "No one yet";
 
         await i.reply({
-          content: `**Attending:**\n${attendingUsers}\n\n**Not Attending:**\n${notAttendingUsers}`,
+          content: `**Attending:**\n${attendingUsersString}\n\n**Not Attending:**\n${notAttendingUsersString}`,
           ephemeral: true,
         });
         return;
       }
 
-      // Check if the user is switching their response
-      if (userResponses[userId] === "attending" && !isAttending) {
-        attendingCount--;
-        absentCount++;
-      } else if (userResponses[userId] === "not_attending" && isAttending) {
-        absentCount--;
-        attendingCount++;
-        // Remove user's reason if they switch to attending
-        const index = notAttendingReasons.findIndex(
-          (entry) => entry.name === userNickname
-        );
-        if (index !== -1) notAttendingReasons.splice(index, 1);
-      } else if (!userResponses[userId]) {
-        // New response, increment appropriate count
+      const existingResponse = userResponses.find(
+        (entry) => entry.name === userNickname
+      );
+
+      if (existingResponse) {
+        if (existingResponse.status === "attending" && !isAttending) {
+          attendingCount--;
+          absentCount++;
+          existingResponse.status = "not_attending";
+          await requestAbsenceReason(i, userNickname, collectorDuration);
+        } else if (existingResponse.status === "not_attending" && isAttending) {
+          absentCount--;
+          attendingCount++;
+          existingResponse.status = "attending";
+          delete existingResponse.reason;
+
+          const existingCollector = dmCollectors.get(userNickname);
+          if (existingCollector) {
+            existingCollector.stop("switched_to_attending");
+            await i.user.send(
+              "You changed your decision to attend the event. There is no need to respond to the previous message I sent now."
+            );
+            dmCollectors.delete(userNickname);
+          }
+        }
+      } else {
+        const newEntry = {
+          name: userNickname,
+          status: isAttending ? "attending" : "not_attending",
+        };
+        userResponses.push(newEntry);
+
         if (isAttending) attendingCount++;
-        else absentCount++;
-      }
-
-      // Update user’s response
-      userResponses[userId] = isAttending ? "attending" : "not_attending";
-
-      // If not attending and user hasn't given a reason, ask for it
-      if (
-        !isAttending &&
-        !notAttendingReasons.some((entry) => entry.name === userNickname)
-      ) {
-        try {
-          const dmChannel = await i.user.createDM();
-          await dmChannel.send("Please provide a reason for not attending:");
-
-          // Collect the user's response
-          const dmCollector = dmChannel.createMessageCollector({
-            max: 1,
-            time: collectorDuration,
-          });
-
-          dmCollector.on("collect", (response) => {
-            const reason = response.content.trim();
-            notAttendingReasons.push({ name: userNickname, reason });
-            dmChannel.send("Thank you for providing a reason.");
-          });
-
-          dmCollector.on("end", (collected) => {
-            if (collected.size === 0) {
-              notAttendingReasons.push({
-                name: userNickname,
-                reason: "No reason provided",
-              });
-              dmChannel.send("No reason was provided within the time limit.");
-            }
-          });
-        } catch (error) {
-          console.error("Error sending DM:", error);
+        else {
+          absentCount++;
+          await requestAbsenceReason(i, userNickname, collectorDuration);
         }
       }
 
-      // Send private feedback to the user
       await i.reply({
-        content: `You have selected: ${
+        content: `Thank you for your response. You have selected: ${
           isAttending ? "Attending" : "Not Attending"
         }`,
         ephemeral: true,
       });
 
-      // Update the embed with current attendance counts
       const updatedEmbed = new EmbedBuilder()
         .setColor("#00ff00")
-        .setTitle(`${eventType} - ${eventName}`)
+        .setTitle(`⚔️ ${eventName} ⚔️`)
         .setDescription(
-          "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nIf you will be absent, please post a message in the absence text channel."
+          "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nThis is a mandatory event. If you will be absent, please respond to the bot's DM with a reason for absence."
         )
         .setThumbnail(thumbnailUrl)
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
         .addFields({
           name: "🕰️ Time:",
           value: `${eventDate} // <t:${unixTimestamp}:R>`,
-        });
+        })
+        .setImage(eventImageUrl);
 
       const updatedRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -281,17 +264,13 @@ module.exports = {
           .setStyle(ButtonStyle.Primary)
       );
 
-      // Update the main message with counts only
       await message.edit({ embeds: [updatedEmbed], components: [updatedRow] });
     });
 
-    // Handle the end of collection
     collector.on("end", async () => {
-      console.log(notAttendingReasons);
-
       const eventConcludedEmbed = new EmbedBuilder()
         .setColor("#00ff00")
-        .setTitle(`${eventType} - ${eventName}`)
+        .setTitle(`⚔️ ${eventName} ⚔️`)
         .setDescription(
           "Registration is no longer available - event has passed."
         )
@@ -300,7 +279,8 @@ module.exports = {
         .addFields({
           name: "🕰️ Time:",
           value: `${eventDate} // <t:${unixTimestamp}:R>`,
-        });
+        })
+        .setImage(eventImageUrl);
 
       const disabledRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -317,13 +297,106 @@ module.exports = {
           .setCustomId("responses")
           .setLabel("Responses")
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(false) // Keep "Responses" active
+          .setDisabled(true)
       );
 
       await message.edit({
         components: [disabledRow],
         embeds: [eventConcludedEmbed],
       });
+
+      const attendanceTrackingChannel = interaction.guild.channels.cache.find(
+        (channel) => channel.name === "🤖┃attendance-tracking"
+      );
+
+      if (attendanceTrackingChannel) {
+        const attendanceSummary = `**Attending (${attendingCount}):**\n${
+          userResponses
+            .filter((entry) => entry.status === "attending")
+            .map((entry) => entry.name)
+            .join("\n") || "No one"
+        }\n\n**Not Attending (${absentCount}):**\n${
+          userResponses
+            .filter((entry) => entry.status === "not_attending")
+            .map(
+              (entry) =>
+                `${entry.name} - ${entry.reason || "No reason provided"}`
+            )
+            .join("\n") || "No one"
+        }`;
+
+        const attendanceEmbed = new EmbedBuilder()
+          .setColor(0x0099ff)
+          .setTitle(`**REACTION summary for ${eventName} on ${eventDate}:**`)
+          .setAuthor({
+            name: "Deme",
+            iconURL: demetoriIcon,
+          })
+          .setDescription(`${attendanceSummary}`)
+          .setThumbnail(thumbnailUrl)
+          .setFooter({
+            text: `Total responses: ${userResponses.length}`,
+            iconURL: demetoriIcon,
+          });
+
+        await attendanceTrackingChannel.send({ embeds: [attendanceEmbed] });
+        console.log(userResponses);
+      }
     });
+
+    async function requestAbsenceReason(i, userNickname, collectorDuration) {
+      try {
+        const dmEmbed = new EmbedBuilder()
+          .setColor(0x0099ff)
+          .setTitle("Event Absence Request")
+          .setAuthor({
+            name: "Deme",
+            iconURL: demetoriIcon,
+          })
+          .setDescription(
+            `Thank you for reacting to the event. Please provide a reason for not attending ${eventName} (${eventDate}) by typing here in our DMs.\nI will be able to accept responses until the event starts.`
+          )
+          .setThumbnail(demetoriIcon);
+
+        const dmChannel = await i.user.createDM();
+        await dmChannel.send({ embeds: [dmEmbed] });
+
+        const dmCollector = dmChannel.createMessageCollector({
+          time: collectorDuration,
+          filter: (msg) => !msg.author.bot,
+        });
+
+        dmCollectors.set(userNickname, dmCollector);
+
+        dmCollector.on("collect", async (response) => {
+          if (response.content.trim() && !response.attachments.size) {
+            const reason = response.content.trim();
+            const user = userResponses.find(
+              (entry) => entry.name === userNickname
+            );
+            if (user) user.reason = reason;
+            dmChannel.send("Thank you for providing a reason.");
+            await dmCollector.stop();
+          } else {
+            dmChannel.send("Please respond with a text message only.");
+          }
+        });
+
+        dmCollector.on("end", (collected, reason) => {
+          dmCollectors.delete(userNickname);
+          if (reason === "switched_to_attending") return;
+
+          const user = userResponses.find(
+            (entry) => entry.name === userNickname
+          );
+          if (collected.size === 0 && user) {
+            user.reason = "No reason provided";
+            dmChannel.send("No reason was provided within the time limit.");
+          }
+        });
+      } catch (error) {
+        console.error("Error sending DM:", error);
+      }
+    }
   },
 };
