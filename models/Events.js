@@ -9,21 +9,15 @@ const eventSchema = new mongoose.Schema({
     time: { type: String, required: true },
   },
   responses: {
-    attending: {
-      type: [String],
-      required: true,
-      default: [],
-    },
-    notAttending: {
-      type: [
-        {
-          name: { type: String, required: true },
-          reason: { type: String, required: true },
-        },
-      ],
-      required: true,
-      default: [],
-    },
+    type: [
+      {
+        name: { type: String, required: true },
+        status: { type: String, required: true },
+        reason: { type: String, required: false },
+      },
+    ],
+    required: true,
+    default: [],
   },
 });
 
