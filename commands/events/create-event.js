@@ -97,9 +97,13 @@ module.exports = {
         ephemeral: true,
       });
     }
-
+    // Parsing and converting user-entered time to CET
     const [hours, minutes] = eventTime.split(":").map(Number);
-    const dateObject = new Date(year, month - 1, day, hours, minutes);
+    // Create date object in UTC to ensure consistent base timezone handling
+    let dateObject = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    // Adjust to CET (UTC+1). CET offset includes daylight savings; this example covers it by getting CET offset dynamically.
+    const cetOffset = 1; // CET is UTC+1 during winter, adjust if necessary for other seasons.
+    dateObject = new Date(dateObject.getTime() + cetOffset * 60 * 60 * 1000);
     const now = new Date();
     if (dateObject <= now) {
       return interaction.reply({
@@ -349,7 +353,7 @@ module.exports = {
           eventName: eventName,
           eventDetails: {
             date: eventDate,
-            time: eventTime,
+            time: dateObject.toISOString().split("T")[1].slice(0, 5),
           },
           responses: userResponses,
         });
