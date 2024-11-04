@@ -29,9 +29,10 @@ module.exports = {
     const isAdmin = await hasAdminPrivileges(interaction);
     // Check if the executing user has admin privileges
     if (!isAdmin) {
-      return interaction.reply(
-        "You do not have permission to use this command."
-      );
+      return interaction.reply({
+        content: "You do not have permission to use this command.",
+        ephemeral: true,
+      });
     }
     // Get the selected member and find their nickname
     const member = interaction.options.getUser("name");

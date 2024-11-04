@@ -20,9 +20,10 @@ module.exports = {
 
     // Check if the executing user has admin privileges
     if (!isAdmin) {
-      return interaction.reply(
-        "You do not have permission to use this command."
-      );
+      return interaction.reply({
+        content: "You do not have permission to use this command.",
+        ephemeral: true,
+      });
     }
 
     try {
@@ -65,7 +66,7 @@ module.exports = {
         .setTitle("Member List")
         .setDescription(memberListDescription)
         .setThumbnail(demetoriIcon)
-        .setAuthor({ name: "Demetorbot", iconURL: demetoriIcon })
+        .setAuthor({ name: "Deme", iconURL: demetoriIcon })
         .setFooter({
           text: `Total Members: ${members.length}`,
           iconURL: demetoriIcon,
