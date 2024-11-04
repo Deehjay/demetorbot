@@ -48,7 +48,7 @@ module.exports = {
       option
         .setName("event_time")
         .setDescription(
-          "Time the event takes place. Will be converted to local time for anyone viewing. HH:MM format"
+          "Time the event takes place. HH:MM format and must be CET time"
         )
         .setRequired(true)
     ),
@@ -112,7 +112,7 @@ module.exports = {
     const utcTimeString = localDateObject.toUTC().toFormat("HH:mm");
     const unixTimestamp = Math.floor(localDateObject.toSeconds());
     const now = DateTime.now(); // Now in user's local timezone
-    const collectorDuration = localDateTime.diff(now).toObject().milliseconds;
+    const collectorDuration = localDateObject.diff(now).toObject().milliseconds;
 
     if (collectorDuration <= 0) {
       return interaction.reply({
@@ -148,6 +148,9 @@ module.exports = {
     const memberMention = memberRole
       ? `<@&${memberRole.id}> **NEW EVENT:**\n`
       : "";
+    const scheduleChannel = interaction.guild.channels.cache.get(
+      "1302006182155915396"
+    );
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -164,11 +167,15 @@ module.exports = {
         .setStyle(ButtonStyle.Primary)
     );
 
-    const message = await interaction.reply({
-      // content: memberMention,
+    const message = await scheduleChannel.send({
+      content: memberMention,
       embeds: [eventEmbed],
       components: [row],
       fetchReply: true,
+    });
+
+    await interaction.reply({
+      content: `Event has been created and posted: ${eventName} on ${eventDate}.`,
     });
 
     const collector = message.createMessageComponentCollector({
