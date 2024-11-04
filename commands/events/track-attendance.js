@@ -60,7 +60,7 @@ module.exports = {
 
     // Get the "Mandatory events" voice channel members
     const voiceChannel = interaction.guild.channels.cache.get(
-      "1300542242276249611"
+      "1301604842875256924"
     );
 
     if (!voiceChannel) {
