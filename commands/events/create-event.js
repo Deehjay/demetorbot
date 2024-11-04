@@ -173,7 +173,8 @@ module.exports = {
       fetchReply: true,
     });
 
-    const collectorDuration = dateObject.getTime() - now.getTime();
+    // Calculate the duration in milliseconds for the collector
+    const collectorDuration = dateObject.diff(now, "milliseconds").milliseconds;
 
     const collector = message.createMessageComponentCollector({
       time: collectorDuration,
