@@ -108,14 +108,11 @@ module.exports = {
       { zone: "local" } // Local to the user’s system timezone
     );
 
-    // Convert localDateObject to UTC
-    const utcDateObject = localDateObject.toUTC();
-
     const utcDateString = utcDateObject.toFormat("yyyy-MM-dd");
     const utcTimeString = utcDateObject.toFormat("HH:mm");
-    const unixTimestamp = Math.floor(utcDateObject.toSeconds());
-    const nowUtc = DateTime.now().toUTC();
-    const collectorDuration = utcDateObject.diff(nowUtc).milliseconds;
+    const unixTimestamp = Math.floor(localDateObject.toSeconds());
+    const now = DateTime.now(); // Now in user's local timezone
+    const collectorDuration = localDateTime.diff(now).toObject().milliseconds;
 
     if (collectorDuration <= 0) {
       return interaction.reply({
