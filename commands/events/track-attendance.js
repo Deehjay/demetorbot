@@ -1,7 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Event = require("../../models/Event");
 const { eventNameChoices, eventImages } = require("../../utilities/data");
-const { demetoriIcon } = require("../../utilities/utilities");
+const {
+  demetoriIcon,
+  logCommandIssuer,
+  hasAdminPrivileges,
+} = require("../../utilities/utilities");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("track-attendance")
