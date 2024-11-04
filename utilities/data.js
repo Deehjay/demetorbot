@@ -9,6 +9,7 @@ const eventTypeChoices = [
 
 const eventNameChoices = [
   // Conflict and Peace
+  { name: "Conflict Boss", value: "Conflict Boss" },
   { name: "Adentus (Conflict)", value: "Adentus (Conflict)" },
   { name: "Ahzreil (Conflict)", value: "Ahzreil (Conflict)" },
   { name: "Aridus (Conflict)", value: "Aridus (Conflict)" },
