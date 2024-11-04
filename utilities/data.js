@@ -91,7 +91,7 @@ const eventThumbnails = {
 
 const eventImages = {
   "Field Boss": "https://i.imgur.com/bI3KkEx.png",
-  Rifstone: "https://i.imgur.com/yuvEDiu.png",
+  Riftstone: "https://i.imgur.com/yuvEDiu.png",
   Boonstone: "https://i.imgur.com/hjij8nV.png",
   "Castle Siege": "https://i.imgur.com/yA34U6J.png",
   "Guild Bosses": "https://i.imgur.com/EwBHdKq.png",
