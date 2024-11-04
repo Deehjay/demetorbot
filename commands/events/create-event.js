@@ -17,6 +17,7 @@ const {
   backupEmbedImage,
   eventThumbnails,
 } = require("../../utilities/data");
+const Event = require("../../models/Event");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -67,9 +68,10 @@ module.exports = {
     logCommandIssuer(interaction, "create-event");
     const isAdmin = await hasAdminPrivileges(interaction);
     if (!isAdmin) {
-      return interaction.reply(
-        "You do not have permission to use this command."
-      );
+      return interaction.reply({
+        content: "You do not have permission to use this command.",
+        ephemeral: true,
+      });
     }
 
     const eventType = interaction.options.getString("event_type");
@@ -276,10 +278,6 @@ module.exports = {
         )
         .setThumbnail(thumbnailUrl)
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
-        .addFields({
-          name: "🕰️ Time:",
-          value: `${eventDate} // <t:${unixTimestamp}:R>`,
-        })
         .setImage(eventImageUrl);
 
       const disabledRow = new ActionRowBuilder().addComponents(
@@ -340,7 +338,25 @@ module.exports = {
           });
 
         await attendanceTrackingChannel.send({ embeds: [attendanceEmbed] });
-        console.log(userResponses);
+      }
+
+      try {
+        const eventId = message.id;
+
+        const newEvent = new Event({
+          eventId: eventId,
+          eventType: eventType,
+          eventName: eventName,
+          eventDetails: {
+            date: eventDate,
+            time: eventTime,
+          },
+          responses: userResponses,
+        });
+
+        await newEvent.save();
+      } catch (err) {
+        console.log("Error adding event to the database: ", err);
       }
     });
 
