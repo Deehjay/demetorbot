@@ -17,6 +17,8 @@ const client = new Client({
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [Partials.Channel],
   allowedMentions: { parse: ["users", "roles"], repliedUser: true },
