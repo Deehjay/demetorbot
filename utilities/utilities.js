@@ -7,13 +7,13 @@ const demetoriIcon =
 
 const gearExample = "https://i.imgur.com/O98wqq8.png";
 
-// Initialize Google Cloud Storage and specify the bucket name
-// const googleCredentials = JSON.parse(
-//   Buffer.from(process.env.GOOGLE_CREDENTIALS, "base64")
-// );
-// const storage = new Storage({ credentials: googleCredentials });
-// const bucketName = "demetorbot"; // Replace with your bucket name
-// const bucket = storage.bucket(bucketName);
+// Initialise Google Cloud Storage and specify the bucket name
+const googleCredentials = JSON.parse(
+  Buffer.from(process.env.GOOGLE_CREDENTIALS, "base64")
+);
+const storage = new Storage({ credentials: googleCredentials });
+const bucketName = "demetorbot"; // Replace with your bucket name
+const bucket = storage.bucket(bucketName);
 
 function hasAdminPrivileges(interaction) {
   const adminRole = interaction.guild.roles.cache.find(
