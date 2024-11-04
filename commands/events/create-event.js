@@ -105,18 +105,21 @@ module.exports = {
     // Create a DateTime object based on user's input, assuming it's in their local time zone
     let dateObject = DateTime.fromObject(
       { year, month, day, hour: hours, minute: minutes },
-      { zone: interaction.user.timezone || "local" } // assuming `local` if user timezone is not set
+      { zone: "local" } // Local to the user entering the time
     );
 
-    // Convert the time to CET
-    dateObject = dateObject.setZone("CET", { keepLocalTime: true });
+    // Convert to UTC to store in the database and to create a consistent Unix timestamp
+    const utcDateObject = dateObject.setZone("UTC");
+    const utcDateString = utcDateObject.toFormat("yyyy-MM-dd");
+    const utcTimeString = utcDateObject.toFormat("HH:mm");
+    const unixTimestamp = Math.floor(utcDateObject.toSeconds());
+    const now = DateTime.now().setZone("UTC");
+    const collectorDuration = utcDateObject.diff(
+      now,
+      "milliseconds"
+    ).milliseconds;
 
-    // Store the CET time correctly formatted for the database and get the Unix timestamp in CET
-    const cetDateString = dateObject.toFormat("yyyy-MM-dd");
-    const cetTimeString = dateObject.toFormat("HH:mm");
-    const unixTimestamp = Math.floor(dateObject.toSeconds());
-    const now = DateTime.now().setZone("CET");
-    if (dateObject <= now) {
+    if (collectorDuration <= 0) {
       return interaction.reply({
         content: "The date and time provided must be in the future.",
         ephemeral: true,
@@ -172,9 +175,6 @@ module.exports = {
       components: [row],
       fetchReply: true,
     });
-
-    // Calculate the duration in milliseconds for the collector
-    const collectorDuration = dateObject.diff(now, "milliseconds").milliseconds;
 
     const collector = message.createMessageComponentCollector({
       time: collectorDuration,
@@ -363,8 +363,8 @@ module.exports = {
           eventType: eventType,
           eventName: eventName,
           eventDetails: {
-            date: cetDateString,
-            time: cetTimeString,
+            date: utcDateString,
+            time: utcTimeString,
           },
           responses: userResponses,
         });
