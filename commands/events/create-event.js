@@ -18,6 +18,7 @@ const {
   eventThumbnails,
 } = require("../../utilities/data");
 const Event = require("../../models/Event");
+const { DateTime } = require("luxon");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -100,11 +101,21 @@ module.exports = {
     // Parsing and converting user-entered time to CET
     const [hours, minutes] = eventTime.split(":").map(Number);
     // Create date object in UTC to ensure consistent base timezone handling
-    let dateObject = new Date(Date.UTC(year, month - 1, day, hours, minutes));
-    // Adjust to CET (UTC+1). CET offset includes daylight savings; this example covers it by getting CET offset dynamically.
-    const cetOffset = 1; // CET is UTC+1 during winter, adjust if necessary for other seasons.
-    dateObject = new Date(dateObject.getTime() + cetOffset * 60 * 60 * 1000);
-    const now = new Date();
+    // Convert the event to CET by interpreting the user’s input as local time
+    // Create a DateTime object based on user's input, assuming it's in their local time zone
+    let dateObject = DateTime.fromObject(
+      { year, month, day, hour: hours, minute: minutes },
+      { zone: interaction.user.timezone || "local" } // assuming `local` if user timezone is not set
+    );
+
+    // Convert the time to CET
+    dateObject = dateObject.setZone("CET", { keepLocalTime: true });
+
+    // Store the CET time correctly formatted for the database and get the Unix timestamp in CET
+    const cetDateString = dateObject.toFormat("yyyy-MM-dd");
+    const cetTimeString = dateObject.toFormat("HH:mm");
+    const unixTimestamp = Math.floor(dateObject.toSeconds());
+    const now = DateTime.now().setZone("CET");
     if (dateObject <= now) {
       return interaction.reply({
         content: "The date and time provided must be in the future.",
@@ -112,7 +123,6 @@ module.exports = {
       });
     }
 
-    const unixTimestamp = Math.floor(dateObject.getTime() / 1000);
     const thumbnailUrl = eventThumbnails[eventType] || demetoriIcon;
     const eventImageUrl = eventImages[eventType] || backupEmbedImage;
 
@@ -352,8 +362,8 @@ module.exports = {
           eventType: eventType,
           eventName: eventName,
           eventDetails: {
-            date: eventDate,
-            time: dateObject.toISOString().split("T")[1].slice(0, 5),
+            date: cetDateString,
+            time: cetTimeString,
           },
           responses: userResponses,
         });
