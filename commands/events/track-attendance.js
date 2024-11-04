@@ -50,7 +50,7 @@ module.exports = {
       "1302717156038934528"
     );
 
-    if (!targetChannel) {
+    if (!attendanceTrackingTextChannel) {
       return interaction.reply({
         content: "Could not find the attendance log channel.",
         ephemeral: true,
