@@ -187,7 +187,7 @@ module.exports = {
     await attendanceTrackingTextChannel.send({ embeds: [attendanceEmbed] });
     // Send the embed to the channel
     await interaction.reply({
-      content: `Attendance summary for ${eventName} on ${eventDate} posted in ${targetChannel}.`,
+      content: `Attendance summary for ${eventName} on ${eventDate} posted in ${attendanceTrackingTextChannel}.`,
       ephemeral: true,
     });
   },
