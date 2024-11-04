@@ -45,6 +45,18 @@ module.exports = {
         ephemeral: true,
       });
     }
+
+    const attendanceTrackingTextChannel = interaction.guild.channels.cache.get(
+      "1302717156038934528"
+    );
+
+    if (!targetChannel) {
+      return interaction.reply({
+        content: "Could not find the attendance log channel.",
+        ephemeral: true,
+      });
+    }
+
     const eventName = interaction.options.getString("event_name");
     const eventDate = interaction.options.getString("event_date");
     const guild = interaction.guild;
@@ -84,8 +96,6 @@ module.exports = {
     const membersWithRole = allMembers.filter((member) =>
       member.roles.cache.has(memberRole.id)
     );
-
-    console.log(membersWithRole);
 
     // Separate responses based on conditions
     const attendingInVoice = [];
@@ -137,7 +147,7 @@ module.exports = {
     });
 
     // Create the embed message
-    const embed = new EmbedBuilder()
+    const attendanceEmbed = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle(`📋 Attendance Summary for ${eventName} on ${eventDate} 📋`)
       .setThumbnail(eventImages[event.eventType])
@@ -174,8 +184,11 @@ module.exports = {
           inline: true,
         }
       );
-
+    await attendanceTrackingTextChannel.send({ embeds: [attendanceEmbed] });
     // Send the embed to the channel
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      content: `Attendance summary for ${eventName} on ${eventDate} posted in ${targetChannel}.`,
+      ephemeral: true,
+    });
   },
 };
