@@ -103,21 +103,19 @@ module.exports = {
     // Create date object in UTC to ensure consistent base timezone handling
     // Convert the event to CET by interpreting the user’s input as local time
     // Create a DateTime object based on user's input, assuming it's in their local time zone
-    let dateObject = DateTime.fromObject(
+    const localDateObject = DateTime.fromObject(
       { year, month, day, hour: hours, minute: minutes },
-      { zone: "local" } // Local to the user entering the time
+      { zone: "local" } // Local to the user’s system timezone
     );
 
-    // Convert to UTC to store in the database and to create a consistent Unix timestamp
-    const utcDateObject = dateObject.setZone("UTC");
+    // Convert localDateObject to UTC
+    const utcDateObject = localDateObject.toUTC();
+
     const utcDateString = utcDateObject.toFormat("yyyy-MM-dd");
     const utcTimeString = utcDateObject.toFormat("HH:mm");
     const unixTimestamp = Math.floor(utcDateObject.toSeconds());
-    const now = DateTime.now().setZone("UTC");
-    const collectorDuration = utcDateObject.diff(
-      now,
-      "milliseconds"
-    ).milliseconds;
+    const nowUtc = DateTime.now().toUTC();
+    const collectorDuration = utcDateObject.diff(nowUtc).milliseconds;
 
     if (collectorDuration <= 0) {
       return interaction.reply({
@@ -262,7 +260,7 @@ module.exports = {
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
         .addFields({
           name: "🕰️ Time:",
-          value: `${eventDate} // <t:${unixTimestamp}:R>`,
+          value: `${eventDate} // <t:${unixTimestamp}:F>`,
         })
         .setImage(eventImageUrl);
 
