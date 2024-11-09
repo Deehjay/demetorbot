@@ -9,6 +9,7 @@ const {
   demetoriIcon,
   logCommandIssuer,
   hasAdminPrivileges,
+  requestAbsenceReason,
 } = require("../../utilities/utilities");
 const {
   eventNameChoices,
@@ -19,6 +20,8 @@ const {
 } = require("../../utilities/data");
 const Event = require("../../models/Event");
 const { DateTime } = require("luxon");
+
+// FIX BUG LATER - IF BOT RESTARTS WITH NO ACTIVE RESPONSES, RESPONSE DOES NOT GET ADDED TO DATABASE
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -66,7 +69,6 @@ module.exports = {
     );
   },
   async execute(interaction) {
-    logCommandIssuer(interaction, "create-event");
     const isAdmin = await hasAdminPrivileges(interaction);
     if (!isAdmin) {
       return interaction.reply({
@@ -79,6 +81,11 @@ module.exports = {
     const eventName = interaction.options.getString("event_name");
     const eventDate = interaction.options.getString("event_date");
     const eventTime = interaction.options.getString("event_time");
+    const eventCreator = interaction.user.username;
+
+    console.log(
+      `[Event Creation] ${eventCreator} is creating event: ${eventName} on ${eventDate}`
+    );
 
     const dateFormat = /^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})$/;
     if (!dateFormat.test(eventDate)) {
@@ -103,16 +110,14 @@ module.exports = {
     // Create date object in UTC to ensure consistent base timezone handling
     // Convert the event to CET by interpreting the user’s input as local time
     // Create a DateTime object based on user's input, assuming it's in their local time zone
-    const localDateObject = DateTime.fromObject(
+    const cetDateTime = DateTime.fromObject(
       { year, month, day, hour: hours, minute: minutes },
-      { zone: "local" } // Local to the user’s system timezone
+      { zone: "Europe/Paris" } // CET/CEST timezone
     );
 
-    const utcDateString = localDateObject.toUTC().toFormat("yyyy-MM-dd");
-    const utcTimeString = localDateObject.toUTC().toFormat("HH:mm");
-    const unixTimestamp = Math.floor(localDateObject.toSeconds());
+    const unixTimestamp = Math.floor(cetDateTime.toSeconds());
     const now = DateTime.now(); // Now in user's local timezone
-    const collectorDuration = localDateObject.diff(now).toObject().milliseconds;
+    const collectorDuration = cetDateTime.diff(now).toObject().milliseconds;
 
     if (collectorDuration <= 0) {
       return interaction.reply({
@@ -134,7 +139,7 @@ module.exports = {
       .setAuthor({ name: "Deme", iconURL: demetoriIcon })
       .addFields({
         name: "🕰️ Time:",
-        value: `${eventDate} // <t:${unixTimestamp}:R>`,
+        value: `<t:${unixTimestamp}:R>`,
       })
       .setImage(eventImageUrl);
 
@@ -143,13 +148,13 @@ module.exports = {
     const userResponses = [];
     const dmCollectors = new Map();
     const memberRole = interaction.guild.roles.cache.find(
-      (role) => role.name === "Member"
+      (role) => role.name === "bot_test"
     );
     const memberMention = memberRole
       ? `<@&${memberRole.id}> **NEW EVENT:**\n`
       : "";
     const scheduleChannel = interaction.guild.channels.cache.get(
-      "1302006182155915396"
+      "1302717156038934528"
     );
 
     const row = new ActionRowBuilder().addComponents(
@@ -173,6 +178,33 @@ module.exports = {
       components: [row],
       fetchReply: true,
     });
+
+    // Store event in the database
+    const newEvent = new Event({
+      eventId: message.id,
+      channelId: scheduleChannel.id,
+      guildId: interaction.guildId,
+      eventType,
+      eventName,
+      eventDetails: {
+        date: eventDate,
+        time: eventTime,
+        dateTime: cetDateTime,
+      },
+      responses: userResponses,
+    });
+    const eventDocId = newEvent._id;
+
+    try {
+      await newEvent.save();
+      console.log(
+        `[Database] Event "${eventName}" on ${eventDate} created by ${eventCreator} has been saved to the database.`
+      );
+    } catch (error) {
+      console.error(
+        `[Database Error] Failed to save event "${eventName}" on ${eventDate}: ${error}`
+      );
+    }
 
     await interaction.reply({
       content: `Event has been created and posted: ${eventName} on ${eventDate}.`,
@@ -208,8 +240,9 @@ module.exports = {
         return;
       }
 
-      const existingResponse = userResponses.find(
-        (entry) => entry.name === userNickname
+      // Check if the user already has an existing response
+      let existingResponse = userResponses.find(
+        (entry) => entry.userId === userId
       );
 
       if (existingResponse) {
@@ -217,40 +250,102 @@ module.exports = {
           attendingCount--;
           absentCount++;
           existingResponse.status = "not_attending";
-          await requestAbsenceReason(i, userNickname, collectorDuration);
+          try {
+            await Event.updateOne(
+              { _id: eventDocId, "responses.userId": userId },
+              {
+                $set: {
+                  "responses.$.status": "not_attending",
+                  "responses.$.name": userNickname,
+                },
+              }
+            );
+            console.log(
+              `[Response] ${userNickname} marked as not attending for event "${eventName}" on ${eventDate}.`
+            );
+            await requestAbsenceReason(
+              i,
+              userId,
+              userNickname,
+              dmCollectors,
+              eventDocId,
+              cetDateTime,
+              eventName,
+              eventDate
+            );
+          } catch (error) {
+            console.error(
+              `[Database Error] Failed to update response for ${userNickname}: ${error}`
+            );
+          }
         } else if (existingResponse.status === "not_attending" && isAttending) {
           absentCount--;
           attendingCount++;
           existingResponse.status = "attending";
-          delete existingResponse.reason;
+          try {
+            await Event.updateOne(
+              { _id: eventDocId, "responses.userId": userId },
+              {
+                $set: {
+                  "responses.$.status": "attending",
+                  "responses.$.name": userNickname,
+                },
+                $unset: { "responses.$.reason": "" },
+              }
+            );
+            console.log(
+              `[Response] ${userNickname} switched to attending for event "${eventName}" on ${eventDate}.`
+            );
+          } catch (error) {
+            console.error(
+              `[Database Error] Failed to update response for ${userNickname}: ${error}`
+            );
+          }
 
-          const existingCollector = dmCollectors.get(userNickname);
+          const existingCollector = dmCollectors.get(userId);
           if (existingCollector) {
             existingCollector.stop("switched_to_attending");
             await i.user.send(
               "You changed your decision to attend the event. There is no need to respond to the previous message I sent now."
             );
-            dmCollectors.delete(userNickname);
+            dmCollectors.delete(userId);
           }
         }
       } else {
         const newEntry = {
+          userId: userId,
           name: userNickname,
           status: isAttending ? "attending" : "not_attending",
         };
         userResponses.push(newEntry);
 
-        if (isAttending) attendingCount++;
-        else {
+        if (isAttending) {
+          attendingCount++;
+          await Event.updateOne(
+            { _id: eventDocId },
+            { $push: { responses: newEntry } }
+          );
+        } else {
           absentCount++;
-          await requestAbsenceReason(i, userNickname, collectorDuration);
+          await Event.updateOne(
+            { _id: eventDocId },
+            { $push: { responses: newEntry } }
+          );
+          await requestAbsenceReason(
+            i,
+            userId,
+            userNickname,
+            dmCollectors,
+            eventDocId,
+            cetDateTime,
+            eventName,
+            eventDate
+          );
         }
       }
 
       await i.reply({
-        content: `Thank you for your response. You have selected: ${
-          isAttending ? "Attending" : "Not Attending"
-        }`,
+        content: "You have already selected this option.",
         ephemeral: true,
       });
 
@@ -264,7 +359,7 @@ module.exports = {
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
         .addFields({
           name: "🕰️ Time:",
-          value: `${eventDate} // <t:${unixTimestamp}:F>`,
+          value: `<t:${unixTimestamp}:R>`,
         })
         .setImage(eventImageUrl);
 
@@ -287,6 +382,9 @@ module.exports = {
     });
 
     collector.on("end", async () => {
+      console.log(
+        `[Collector] Event "${eventName}" on ${eventDate} has ended. Collecting responses is now closed.`
+      );
       const eventConcludedEmbed = new EmbedBuilder()
         .setColor("#00ff00")
         .setTitle(`⚔️ ${eventName} ⚔️`)
@@ -320,18 +418,26 @@ module.exports = {
         embeds: [eventConcludedEmbed],
       });
 
-      const attendanceTrackingChannel = interaction.guild.channels.cache.find(
-        (channel) => channel.name === "🤖┃attendance-tracking"
+      const attendanceTrackingChannel = interaction.guild.channels.cache.get(
+        "1302717156038934528"
       );
 
       if (attendanceTrackingChannel) {
+        // Fetch the final version of the event from the database to ensure it has the latest reasons
+        const finalEvent = await Event.findById(eventDocId);
+        if (!finalEvent) {
+          console.error(
+            `[Database Error] Event with ID ${eventDocId} not found.`
+          );
+          return;
+        }
         const attendanceSummary = `**Attending (${attendingCount}):**\n${
-          userResponses
+          finalEvent.responses
             .filter((entry) => entry.status === "attending")
             .map((entry) => entry.name)
             .join("\n") || "No one"
         }\n\n**Not Attending (${absentCount}):**\n${
-          userResponses
+          finalEvent.responses
             .filter((entry) => entry.status === "not_attending")
             .map(
               (entry) =>
@@ -356,80 +462,6 @@ module.exports = {
 
         await attendanceTrackingChannel.send({ embeds: [attendanceEmbed] });
       }
-
-      try {
-        const eventId = message.id;
-
-        const newEvent = new Event({
-          eventId: eventId,
-          eventType: eventType,
-          eventName: eventName,
-          eventDetails: {
-            date: utcDateString,
-            time: utcTimeString,
-          },
-          responses: userResponses,
-        });
-
-        await newEvent.save();
-      } catch (err) {
-        console.log("Error adding event to the database: ", err);
-      }
     });
-
-    async function requestAbsenceReason(i, userNickname, collectorDuration) {
-      try {
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0x0099ff)
-          .setTitle("Event Absence Request")
-          .setAuthor({
-            name: "Deme",
-            iconURL: demetoriIcon,
-          })
-          .setDescription(
-            `Thank you for reacting to the event. Please provide a reason for not attending ${eventName} (${eventDate}) by typing here in our DMs.\nI will be able to accept responses until the event starts.`
-          )
-          .setThumbnail(demetoriIcon);
-
-        const dmChannel = await i.user.createDM();
-        await dmChannel.send({ embeds: [dmEmbed] });
-
-        const dmCollector = dmChannel.createMessageCollector({
-          time: collectorDuration,
-          filter: (msg) => !msg.author.bot,
-        });
-
-        dmCollectors.set(userNickname, dmCollector);
-
-        dmCollector.on("collect", async (response) => {
-          if (response.content.trim() && !response.attachments.size) {
-            const reason = response.content.trim();
-            const user = userResponses.find(
-              (entry) => entry.name === userNickname
-            );
-            if (user) user.reason = reason;
-            dmChannel.send("Thank you for providing a reason.");
-            await dmCollector.stop();
-          } else {
-            dmChannel.send("Please respond with a text message only.");
-          }
-        });
-
-        dmCollector.on("end", (collected, reason) => {
-          dmCollectors.delete(userNickname);
-          if (reason === "switched_to_attending") return;
-
-          const user = userResponses.find(
-            (entry) => entry.name === userNickname
-          );
-          if (collected.size === 0 && user) {
-            user.reason = "No reason provided";
-            dmChannel.send("No reason was provided within the time limit.");
-          }
-        });
-      } catch (error) {
-        console.error("Error sending DM:", error);
-      }
-    }
   },
 };
