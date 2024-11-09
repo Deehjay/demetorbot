@@ -10,6 +10,7 @@ const {
 } = require("discord.js");
 const discordToken = process.env.DISCORD_TOKEN;
 const mongoose = require("mongoose");
+const { reinitializeEventCollectors } = require("./utilities/utilities");
 
 const client = new Client({
   intents: [
@@ -52,8 +53,9 @@ for (const folder of commandFolders) {
   }
 }
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  await reinitializeEventCollectors(client);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
