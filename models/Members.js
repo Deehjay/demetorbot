@@ -6,7 +6,13 @@ const memberSchema = new mongoose.Schema({
   discordDisplayName: String,
   inGameName: String,
   weapons: String,
-  gear: { original: String, shortened: String, lastUpdated: String },
+  gear: {
+    original: String,
+    shortened: String,
+    lastUpdated: String,
+    plannerLink: String,
+    plannerLinkShortened: String,
+  },
   wishlist: Array,
 });
 
