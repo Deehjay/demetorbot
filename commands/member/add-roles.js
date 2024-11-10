@@ -3,7 +3,7 @@ const {
   logCommandIssuer,
 } = require("../../utilities/utilities.js");
 const { SlashCommandBuilder } = require("discord.js");
-const Members = require("../../models/Members");
+const Members = require("../../models/Members.js");
 
 module.exports = {
   data: new SlashCommandBuilder()

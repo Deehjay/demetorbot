@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, Embed } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Members = require("../../models/Members");
 const {
   logCommandIssuer,
@@ -14,9 +14,7 @@ const {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("update-gear")
-    .setDescription(
-      "DM a member to collect their gear. Stores info in database."
-    )
+    .setDescription("Update your gear via screenshot.")
     .addUserOption((option) =>
       option
         .setName("name")
@@ -24,20 +22,42 @@ module.exports = {
         .setRequired(true)
     ),
   async execute(interaction) {
-    // Log who triggered the command
-    logCommandIssuer(interaction, "update-gear");
+    const commandIssuer = interaction.user;
     const isAdmin = await hasAdminPrivileges(interaction);
-    // Check if the executing user has admin privileges
-    if (!isAdmin) {
-      return interaction.reply({
-        content: "You do not have permission to use this command.",
-        ephemeral: true,
-      });
-    }
-    // Get the selected member and find their nickname
     const member = interaction.options.getUser("name");
     const guildMember = interaction.guild.members.cache.get(member.id);
-    const memberNickname = guildMember.nickname;
+    const memberNickname = guildMember.nickname || member.username;
+    console.log(
+      `[Gear Update] ${commandIssuer.username} triggered the update-gear command.`
+    );
+
+    // Check if the user has permission to update the specified user's gear
+    if (!isAdmin) {
+      const hasMemberRole = interaction.member.roles.cache.some(
+        (role) => role.name === "Member"
+      );
+
+      if (!hasMemberRole) {
+        console.log(
+          `[Gear Update] ${commandIssuer.username} does not meet requirements to use update-gear command (not a member).`
+        );
+        return interaction.reply({
+          content: "You must be a member to use this command.",
+          ephemeral: true,
+        });
+      } else if (member.id !== commandIssuer.id) {
+        console.log(
+          `[Gear Update] ${memberNickname} does not meet requirements to use update-gear command (tried to use it on another member).`
+        );
+        return interaction.reply({
+          content: "You can only update your own gear.",
+          ephemeral: true,
+        });
+      }
+    }
+    console.log(
+      `[Gear Update] Prompting ${memberNickname} to provide gear screenshot.`
+    );
 
     const dmPromptEmbed = new EmbedBuilder()
       .setColor("#3498db")
@@ -51,23 +71,29 @@ module.exports = {
       .setThumbnail(demetoriIcon)
       .setAuthor({ name: "Demetorbot", iconURL: demetoriIcon });
 
-    // Create a DM with selected member asking for gear - inform command issuer that they have been prompted
     const dmChannel = await member.createDM();
     await dmChannel.send({ embeds: [dmPromptEmbed] });
-    await interaction.reply(
+    await interaction.reply({
+      content: `You have been prompted to update your gear.`,
+      ephemeral: true,
+    });
+    const botCommandsChannel = interaction.guild.channels.cache.get(
+      "1300435235577528444"
+    );
+    await botCommandsChannel.send(
       `> :timer: Prompted ${memberNickname} to send a screenshot of their gear.`
     );
 
-    // Create a filter and message collector with a 10-minute timeout
-    const filter = (response) => response.author.id === member.id; // Filter only messages for the specific member
+    const filter = (response) => response.author.id === member.id;
     const messageCollector = dmChannel.createMessageCollector({
       filter,
-      time: 600_000, // Time in ms (10 minutes)
+      time: 600_000,
     });
 
     messageCollector.on("collect", async (message) => {
       let imageUrl;
-      // Check if the collected message contains an attachment first
+      console.log(`[Gear Update] Received response from ${memberNickname}.`);
+
       if (message.attachments.size > 0) {
         const attachment = message.attachments.first();
         const isImage =
@@ -78,74 +104,88 @@ module.exports = {
           imageUrl = attachment.url.includes("?")
             ? attachment.url
             : attachment.proxyURL;
+          console.log(
+            `[Gear Update] ${memberNickname} provided a valid attachment.`
+          );
         }
       } else if (message.content) {
-        // If collected message is not a direct attachment, see if message provided contains a link to a valid image
         const urlPattern = /(https?:\/\/[^\s]+(?:png|jpg|jpeg|bmp)[^\s]*)/i;
         const urlMatch = message.content.match(urlPattern);
 
         if (urlMatch) {
           imageUrl = urlMatch[0];
+          console.log(`[Gear Update] ${memberNickname} provided a valid URL.`);
         }
       }
 
-      console.log(imageUrl);
-
-      // Once both checks have been made, either update member in db or send response that reply is invalid
       if (imageUrl) {
         try {
           const memberData = await Members.findOne({ memberId: member.id });
-
           if (memberData && memberData.gear && memberData.gear.original) {
             const oldFileName = memberData.gear.original.split("/").pop();
             await deleteScreenShotFromCloud(oldFileName);
             console.log(
-              `Old screenshot ${oldFileName} deleted from Google Cloud Storage.`
+              `[Gear Update] Deleted old screenshot for ${memberNickname}: ${oldFileName}`
             );
           }
           const uploadedGearImage = await processGearScreenshot(imageUrl);
           const shortenedGearUrl = await shortenUrl(uploadedGearImage);
 
           await Members.findOneAndUpdate(
-            { memberId: member.id }, // Search by member ID
+            { memberId: member.id },
             {
               $set: {
-                gear: {
-                  original: uploadedGearImage,
-                  shortened: shortenedGearUrl,
-                  lastUpdated: getCurrentDate(),
-                },
+                "gear.original": uploadedGearImage,
+                "gear.shortened": shortenedGearUrl,
+                "gear.lastUpdated": getCurrentDate(),
               },
-            } // Update gear field with the image URL
+            }
           );
-          messageCollector.stop("success"); // Stop the message collector after processing image and updating db
+          console.log(
+            `[Database] Updated gear for ${memberNickname} in the database.`
+          );
+          messageCollector.stop("success");
         } catch (err) {
-          console.error("Database update error:", err);
+          console.error(
+            `[Database Error] Failed to update gear for ${memberNickname}:`,
+            err
+          );
           messageCollector.stop("db_error");
         }
       } else {
+        console.log(
+          `[Gear Update] Invalid response from ${memberNickname}. Prompting for correct format.`
+        );
         dmChannel.send(
           "Reply is not valid. Please either directly upload a screenshot, or a link to a screenshot (url must contain .jpg/jpeg/png)"
         );
       }
     });
 
-    // Handle the end of collection (including timeouts)
     messageCollector.on("end", (collected, reason) => {
       if (reason === "time") {
-        interaction.followUp(
+        console.log(
+          `[Gear Update] Collection timed out for ${memberNickname}.`
+        );
+        botCommandsChannel.send(
           `> ❌ Listening timed out. ${memberNickname} did not respond with a screenshot of their gear in time`
         );
         dmChannel.send(
           "Listening timed out. You did not respond with a screenshot of your gear in time."
         );
       } else if (reason === "success") {
-        interaction.followUp(
+        console.log(
+          `[Gear Update] Gear successfully updated for ${memberNickname}.`
+        );
+        botCommandsChannel.send(
           `> ✅ ${memberNickname} has provided a link to their gear. Database has been updated.`
         );
         dmChannel.send("Thank you for providing a screenshot of your gear! 😊");
       } else if (reason === "db_error") {
-        interaction.followUp(
+        console.log(
+          `[Gear Update] Error updating database for ${memberNickname}.`
+        );
+        botCommandsChannel.send(
           `> ❌ There was an issue updating ${memberNickname}'s information in the database. Please check the logs for more details.`
         );
         dmChannel.send("An error occurred.");
