@@ -1,5 +1,6 @@
 const { Storage } = require("@google-cloud/storage");
 const mongoose = require("mongoose");
+const path = require("path");
 const { DateTime } = require("luxon");
 const fetch = require("node-fetch");
 const Event = require("../models/Event");
@@ -17,12 +18,12 @@ const demetoriIcon =
 
 const gearExample = "https://i.imgur.com/O98wqq8.png";
 
-// Initialise Google Cloud Storage and specify the bucket name
-const googleCredentials = JSON.parse(
-  Buffer.from(process.env.GOOGLE_CREDENTIALS, "base64")
-);
-const storage = new Storage({ credentials: googleCredentials });
-const bucketName = "demetorbot"; // Replace with your bucket name
+const credentialsPath = path.join(__dirname, "../credentials.json");
+
+const storage = new Storage({
+  keyFilename: credentialsPath,
+});
+const bucketName = "demetorbot";
 const bucket = storage.bucket(bucketName);
 
 function hasAdminPrivileges(interaction) {
@@ -55,30 +56,93 @@ async function uploadImageToGCS(imageBuffer, fileName) {
 
 // Main function to download from Discord and upload to GCS
 async function processGearScreenshot(discordCdnUrl) {
-  const response = await fetch(discordCdnUrl);
-  const arrayBuffer = await response.arrayBuffer();
-  const imageBuffer = Buffer.from(arrayBuffer);
-  const fileName = `gear_${Date.now()}.png`; // Unique filename based on timestamp
+  try {
+    console.log(`[Gear Update] Fetching image from Discord CDN URL`);
+    const response = await fetch(discordCdnUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
 
-  // Upload the image buffer to GCS
-  const gcsLink = await uploadImageToGCS(imageBuffer, fileName);
-  if (gcsLink) {
-    console.log("Google Cloud Storage link:", gcsLink);
-    return gcsLink;
+    const fileName = `gear_${Date.now()}.png`;
+    console.log(
+      `[Gear Update] Processing image and uploading to Google Cloud Storage with filename: ${fileName}`
+    );
+
+    // Upload the image buffer to GCS
+    const gcsLink = await uploadImageToGCS(imageBuffer, fileName);
+    if (gcsLink) {
+      return gcsLink;
+    } else {
+      console.warn(
+        `[Gear Update] Failed to obtain a link from Google Cloud Storage for filename: ${fileName}`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[Gear Update] Error processing screenshot from Discord CDN URL: ${discordCdnUrl}`,
+      error
+    );
+    throw error;
   }
 }
 
 async function deleteScreenShotFromCloud(fileName) {
-  await bucket.file(fileName).delete();
-  return;
+  try {
+    console.log(
+      `[Gear Update] Attempting to delete file from Google Cloud Storage: ${fileName}`
+    );
+    await bucket.file(fileName).delete();
+    console.log(
+      `[Gear Update] File deleted successfully from Google Cloud Storage: ${fileName}`
+    );
+  } catch (error) {
+    console.error(
+      `[Gear Update] Error deleting file from Google Cloud Storage: ${fileName}`,
+      error
+    );
+    throw error;
+  }
 }
 
 async function shortenUrl(url) {
-  const response = await fetch(
-    `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`
-  );
-  const responseUrl = await response.text();
-  return responseUrl;
+  try {
+    console.log(`[Url Shorten] Attempting to shorten URL: ${url}`);
+    const response = await fetch(
+      `https://is.gd/create.php?format=simple&url=${encodeURIComponent(url)}`
+    );
+    const responseUrl = await response.text();
+    console.log(`[Url Shorten] URL shortened successfully: ${responseUrl}`);
+    return responseUrl;
+  } catch (error) {
+    console.error(`[Url Shorten] Error shortening URL: ${url}`, error);
+    throw error;
+  }
+}
+
+// Assuming this function exists to upload images to Google Cloud Storage
+async function uploadImageToGCS(imageBuffer, fileName) {
+  try {
+    console.log(
+      `[Gear Update] Uploading image to Google Cloud Storage with filename: ${fileName}`
+    );
+    const file = bucket.file(fileName);
+    await file.save(imageBuffer, {
+      metadata: {
+        contentType: "image/png",
+      },
+      resumable: false,
+    });
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+    console.log(
+      `[Gear Update] Image uploaded successfully. Public URL: ${publicUrl}`
+    );
+    return publicUrl;
+  } catch (error) {
+    console.error(
+      `[Gear Update] Error uploading image to Google Cloud Storage with filename: ${fileName}`,
+      error
+    );
+    throw error;
+  }
 }
 
 function getCurrentDate() {
