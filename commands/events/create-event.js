@@ -84,7 +84,7 @@ module.exports = {
     const eventCreator = interaction.user.username;
 
     console.log(
-      `[Event Creation] ${eventCreator} is creating event: ${eventName} on ${eventDate}`
+      `[Event] ${eventCreator} is creating event: ${eventName} on ${eventDate}`
     );
 
     const dateFormat = /^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})$/;
@@ -198,7 +198,7 @@ module.exports = {
     try {
       await newEvent.save();
       console.log(
-        `[Database] Event "${eventName}" on ${eventDate} created by ${eventCreator} has been saved to the database.`
+        `[Event] Event "${eventName}" on ${eventDate} created by ${eventCreator} has been saved to the database.`
       );
     } catch (error) {
       console.error(
@@ -260,9 +260,6 @@ module.exports = {
                 },
               }
             );
-            console.log(
-              `[Response] ${userNickname} marked as not attending for event "${eventName}" on ${eventDate}.`
-            );
             await requestAbsenceReason(
               i,
               userId,
@@ -294,11 +291,11 @@ module.exports = {
               }
             );
             console.log(
-              `[Response] ${userNickname} switched to attending for event "${eventName}" on ${eventDate}.`
+              `[Event] ${userNickname} switched to attending for event "${eventName}" on ${eventDate}.`
             );
           } catch (error) {
             console.error(
-              `[Database Error] Failed to update response for ${userNickname}: ${error}`
+              `[Database Error] Failed to update event response for ${userNickname}: ${error}`
             );
           }
 
@@ -310,6 +307,11 @@ module.exports = {
             );
             dmCollectors.delete(userId);
           }
+        } else {
+          await i.reply({
+            content: "You have already selected this option.",
+            ephemeral: true,
+          });
         }
       } else {
         const newEntry = {
@@ -342,12 +344,19 @@ module.exports = {
             eventDate
           );
         }
+        await i.reply({
+          content: `You have selected: ${
+            isAttending ? "Attending" : "Not Attending"
+          }`,
+          ephemeral: true,
+        });
       }
 
-      await i.reply({
-        content: "You have already selected this option.",
-        ephemeral: true,
-      });
+      console.log(
+        `[Event] ${userNickname} marked as not ${
+          isAttending ? "attending" : "not attending"
+        } for event "${eventName}" on ${eventDate}.`
+      );
 
       const updatedEmbed = new EmbedBuilder()
         .setColor("#00ff00")
@@ -383,7 +392,7 @@ module.exports = {
 
     collector.on("end", async () => {
       console.log(
-        `[Collector] Event "${eventName}" on ${eventDate} has ended. Collecting responses is now closed.`
+        `[Event] Event "${eventName}" on ${eventDate} has ended. Collecting responses is now closed.`
       );
       const eventConcludedEmbed = new EmbedBuilder()
         .setColor("#00ff00")
