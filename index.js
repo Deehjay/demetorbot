@@ -28,7 +28,7 @@ const mongoURI = process.env.MONGO_URI;
 
 mongoose
   .connect(mongoURI)
-  .then(() => console.log("[Databse] Connected to MongoDB."))
+  .then(() => console.log("[Database] Connected to MongoDB"))
   .catch((err) => console.error("Failed to connect to MongoDB", err));
 
 client.commands = new Collection();
@@ -54,7 +54,7 @@ for (const folder of commandFolders) {
 }
 
 client.once(Events.ClientReady, async (readyClient) => {
-  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  console.log(`[Client] Ready! Logged in as ${readyClient.user.tag}`);
   await reinitializeEventCollectors(client);
 });
 
