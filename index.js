@@ -11,6 +11,7 @@ const {
 const discordToken = process.env.DISCORD_TOKEN;
 const mongoose = require("mongoose");
 const { reinitializeEventCollectors } = require("./utilities/utilities");
+const Members = require("./models/Members");
 
 const client = new Client({
   intents: [
@@ -90,6 +91,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
         ephemeral: true,
       });
     }
+  }
+});
+
+client.on(Events.GuildMemberRemove, async (member) => {
+  try {
+    const memberId = member.id;
+
+    console.log(`[Member Left] ${member.user.tag} (${userId}) left the server`);
+
+    // Delete the member from the database
+    await Members.deleteOne({ memberId: memberId });
+
+    console.log(
+      `[Database] Successfully deleted member with ID ${userId} from the database.`
+    );
+  } catch (error) {
+    console.error(
+      `[Database] Error deleting member from the database: ${error}`
+    );
   }
 });
 
