@@ -143,6 +143,9 @@ module.exports = {
               },
             }
           );
+          botCommandsChannel.send(
+            `> ✅ ${memberNickname} has provided a link to their gear: ${shortenedGearUrl} - Database has been updated.`
+          );
           console.log(
             `[Database] Updated gear for ${memberNickname} in the database.`
           );
@@ -178,9 +181,6 @@ module.exports = {
       } else if (reason === "success") {
         console.log(
           `[Gear Update] Gear successfully updated for ${memberNickname}.`
-        );
-        botCommandsChannel.send(
-          `> ✅ ${memberNickname} has provided a link to their gear. Database has been updated.`
         );
         dmChannel.send("Thank you for providing a screenshot of your gear! 😊");
       } else if (reason === "db_error") {

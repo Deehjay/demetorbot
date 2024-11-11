@@ -69,7 +69,7 @@ module.exports = {
       );
 
       await botCommandsChannel.send(
-        `> ✅ ${memberNickname} has updated their planner link: ${shortenedQuestlogLink}`
+        `> ✅ ${memberNickname} has updated their planner link: ${shortenedQuestlogLink} - Database updated.`
       );
 
       interaction.reply({
