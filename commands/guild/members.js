@@ -52,16 +52,13 @@ module.exports = {
         membersByWeapons[weaponCombination].forEach((member) => {
           memberListDescription += `- ${member.inGameName}`;
           if (member.gear.original && member.gear.shortened) {
-            memberListDescription += ` | [${member.gear.lastUpdated.substring(
-              0,
-              5
-            )}](${member.gear.shortened}) | `;
+            memberListDescription += ` | [G](${member.gear.shortened}) | `;
           } else {
-            memberListDescription += ` | No gear | `;
+            memberListDescription += ` | 0 | `;
           }
 
           if (member.gear.plannerLink && member.gear.plannerLinkShortened) {
-            memberListDescription += `[Plan](${member.gear.plannerLinkShortened})\n`;
+            memberListDescription += `[P](${member.gear.plannerLinkShortened})\n`;
           } else {
             memberListDescription += "0\n";
           }
