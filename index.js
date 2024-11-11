@@ -28,7 +28,7 @@ const mongoURI = process.env.MONGO_URI;
 
 mongoose
   .connect(mongoURI)
-  .then(() => console.log("[Database] Connected to MongoDB."))
+  .then(() => console.log("[Database] Connected to MongoDB!"))
   .catch((err) => console.error("Failed to connect to MongoDB", err));
 
 client.commands = new Collection();
