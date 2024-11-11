@@ -148,13 +148,13 @@ module.exports = {
     const userResponses = [];
     const dmCollectors = new Map();
     const memberRole = interaction.guild.roles.cache.find(
-      (role) => role.name === "bot_test"
+      (role) => role.name === "Member"
     );
     const memberMention = memberRole
       ? `<@&${memberRole.id}> **NEW EVENT:**\n`
       : "";
     const scheduleChannel = interaction.guild.channels.cache.get(
-      "1302717156038934528"
+      "1302006182155915396"
     );
 
     const row = new ActionRowBuilder().addComponents(
