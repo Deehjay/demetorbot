@@ -35,7 +35,7 @@ module.exports = {
     }
     // Validate that the link is specifically for the character-builder page on questlog.gg
     const questlogRegex =
-      /^https:\/\/(www\.)?questlog\.gg\/throne-and-liberty\/en\/character-builder\/.+$/;
+      /^https:\/\/(www\.)?questlog\.gg\/throne-and-liberty\/en\/character-builder\/[a-zA-Z0-9-]+$/;
     if (!questlogRegex.test(plannerLink)) {
       console.log(
         `[Planner Update] ${memberNickname} provided an invalid Questlog character builder link.`
@@ -81,6 +81,9 @@ module.exports = {
       console.error(
         `[Database Error] Failed to update planner link for ${memberNickname}:`,
         error
+      );
+      await botCommandsChannel.send(
+        `> ❌ There was an error updating the planner link for ${memberNickname}`
       );
       interaction.reply({
         content:
