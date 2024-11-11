@@ -123,9 +123,11 @@ module.exports = {
           const memberData = await Members.findOne({ memberId: member.id });
           if (memberData && memberData.gear && memberData.gear.original) {
             const oldFileName = memberData.gear.original.split("/").pop();
-            await deleteScreenShotFromCloud(oldFileName);
+            const fileWasDeleted = await deleteScreenShotFromCloud(oldFileName);
             console.log(
-              `[Gear Update] Deleted old screenshot for ${memberNickname}: ${oldFileName}`
+              `[Gear Update] Old screenshot for ${memberNickname} ${
+                fileWasDeleted ? "was deleted" : "did not exist"
+              }`
             );
           }
           const uploadedGearImage = await processGearScreenshot(imageUrl);
