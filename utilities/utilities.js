@@ -90,10 +90,22 @@ async function deleteScreenShotFromCloud(fileName) {
     console.log(
       `[Gear Update] Attempting to delete file from Google Cloud Storage: ${fileName}`
     );
-    await bucket.file(fileName).delete();
+
+    const file = bucket.file(fileName);
+    const [exists] = await file.exists();
+
+    if (!exists) {
+      console.log(
+        `[Gear Update] File not found in Google Cloud Storage: ${fileName}`
+      );
+      return false; // Exit if the file doesn't exist
+    }
+
+    await file.delete();
     console.log(
       `[Gear Update] File deleted successfully from Google Cloud Storage: ${fileName}`
     );
+    return true;
   } catch (error) {
     console.error(
       `[Gear Update] Error deleting file from Google Cloud Storage: ${fileName}`,
