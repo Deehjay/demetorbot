@@ -47,6 +47,10 @@ module.exports = {
       });
     }
 
+    const botCommandsChannel = interaction.guild.channels.cache.get(
+      "1300435235577528444"
+    );
+
     try {
       const shortenedQuestlogLink = await shortenUrl(plannerLink);
       await Members.findOneAndUpdate(
@@ -62,10 +66,6 @@ module.exports = {
 
       console.log(
         `[Planner Update] Successfully updated planner link for ${memberNickname}.`
-      );
-
-      const botCommandsChannel = interaction.guild.channels.cache.get(
-        "1300435235577528444"
       );
 
       await botCommandsChannel.send(
