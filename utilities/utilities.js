@@ -259,6 +259,8 @@ async function reinitializeEventCollectors(client) {
         const isResponseButton = i.customId === "responses";
 
         if (isResponseButton) {
+          await i.deferReply({ ephemeral: true });
+
           const attendingUsers = await Promise.all(
             responses
               .filter((entry) => entry.status === "attending")
@@ -282,9 +284,8 @@ async function reinitializeEventCollectors(client) {
           const notAttendingUsersString =
             notAttendingUsers.join("\n") || "No one yet";
 
-          await i.reply({
+          await i.editReply({
             content: `**Attending:**\n${attendingUsersString}\n\n**Not Attending:**\n${notAttendingUsersString}`,
-            ephemeral: true,
           });
           return;
         }
