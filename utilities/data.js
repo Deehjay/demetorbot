@@ -5,6 +5,8 @@ const eventTypeChoices = [
   { name: "Riftstone", value: "Riftstone" },
   { name: "Guild Bosses", value: "Guild Bosses" },
   { name: "Castle Siege", value: "Castle Siege" },
+  { name: "Guild Event", value: "Guild Event" },
+  { name: "Tax Delivery", value: "Tax Delivery" },
 ];
 
 const eventNameChoices = [
@@ -72,6 +74,12 @@ const eventNameChoices = [
 
   // Castle Siege
   { name: "Castle Siege", value: "Castle Siege" },
+
+  // Tax Delivery
+  { name: "Tax Delivery", value: "Tax Delivery" },
+
+  // Guild Event
+  { name: "Guild Event", value: "Guild Event" },
 ];
 
 const eventThumbnails = {
@@ -87,6 +95,10 @@ const eventThumbnails = {
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/guild-base.png",
   Archboss:
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/archboss.png",
+  "Guild Event":
+    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/dynamic-event.png",
+  "Tax Delivery":
+    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/tax-collector1.png",
 };
 
 const eventImages = {
@@ -96,6 +108,8 @@ const eventImages = {
   "Castle Siege": "https://i.imgur.com/yA34U6J.png",
   "Guild Bosses": "https://i.imgur.com/EwBHdKq.png",
   Archboss: "https://i.imgur.com/vsjnX1w.png",
+  "Guild Event": "https://i.imgur.com/vGxe6B7.png",
+  "Tax Delivery": "https://i.imgur.com/ka4Yz55.png",
 };
 
 const backupEmbedImage = "https://i.imgur.com/iNR6sxc.png";
