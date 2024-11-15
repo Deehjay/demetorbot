@@ -106,7 +106,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
     await Members.deleteOne({ memberId: memberId });
 
     console.log(
-      `[Database] Successfully deleted member with ID ${userId} from the database.`
+      `[Database] Successfully deleted member with ID ${memberId} from the database.`
     );
   } catch (error) {
     console.error(
