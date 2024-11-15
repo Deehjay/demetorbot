@@ -98,7 +98,9 @@ client.on(Events.GuildMemberRemove, async (member) => {
   try {
     const memberId = member.id;
 
-    console.log(`[Member Left] ${member.user.tag} (${userId}) left the server`);
+    console.log(
+      `[Member Left] ${member.user.tag} (${memberId}) left the server`
+    );
 
     // Delete the member from the database
     await Members.deleteOne({ memberId: memberId });
