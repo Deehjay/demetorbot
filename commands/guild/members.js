@@ -70,15 +70,15 @@ module.exports = {
             description += `- ${member.inGameName}\n`;
           } else if (subcommand === "gear") {
             if (member.gear.original && member.gear.shortened) {
-              description += `- ${member.inGameName}: [Gear Link](${member.gear.shortened}) (Updated: ${member.gear.lastUpdated})\n`;
+              description += `- ${member.inGameName}: [${member.gear.lastUpdated}](${member.gear.shortened})\n`;
             } else {
-              description += `- ${member.inGameName}: No gear available\n`;
+              description += `- ${member.inGameName}: No gear\n`;
             }
           } else if (subcommand === "planners") {
             if (member.gear.plannerLink && member.gear.plannerLinkShortened) {
               description += `- ${member.inGameName}: [Planner Link](${member.gear.plannerLinkShortened})\n`;
             } else {
-              description += `- ${member.inGameName}: No planner link available\n`;
+              description += `- ${member.inGameName}: No planner\n`;
             }
           }
         });
