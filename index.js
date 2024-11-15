@@ -22,7 +22,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildVoiceStates,
   ],
-  partials: [Partials.Channel],
+  partials: [Partials.Channel, Partials.GuildMember],
   allowedMentions: { parse: ["users", "roles"], repliedUser: true },
 });
 const mongoURI = process.env.MONGO_URI;
