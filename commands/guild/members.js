@@ -10,12 +10,26 @@ require("dotenv").config();
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("members")
-    .setDescription(
-      "Lists all members with their weapons and a link to their gear"
+    .setDescription("Lists members and their details")
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("list")
+        .setDescription("Show a list of members and their weapons")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("gear")
+        .setDescription("Show members' gear with links to their gear")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("planners")
+        .setDescription("Show members' planner links")
     ),
   async execute(interaction) {
     // Log who triggered the command
     logCommandIssuer(interaction, "members");
+
     const isAdmin = await hasAdminPrivileges(interaction);
 
     // Check if the executing user has admin privileges
@@ -26,13 +40,13 @@ module.exports = {
       });
     }
 
+    const subcommand = interaction.options.getSubcommand();
+
     try {
       const members = await Members.find({});
+      const membersByWeapons = {};
 
       // Group members by their weapon combinations
-      const membersByWeapons = {};
-      let memberListDescription = "";
-
       members.forEach((member) => {
         const weaponCombination = member.weapons;
 
@@ -45,32 +59,37 @@ module.exports = {
         membersByWeapons[weaponCombination].push(member);
       });
 
+      let description = "";
+
       // Build the embed description with headings and members under each heading
       Object.keys(membersByWeapons).forEach((weaponCombination) => {
-        memberListDescription += `**${weaponCombination} - ${membersByWeapons[weaponCombination].length} total**\n`;
+        description += `**${weaponCombination} - ${membersByWeapons[weaponCombination].length} total**\n`;
 
         membersByWeapons[weaponCombination].forEach((member) => {
-          memberListDescription += `- ${member.inGameName}`;
-          if (member.gear.original && member.gear.shortened) {
-            memberListDescription += ` | [G](${member.gear.shortened}) | `;
-          } else {
-            memberListDescription += ` | 0 | `;
-          }
-
-          if (member.gear.plannerLink && member.gear.plannerLinkShortened) {
-            memberListDescription += `[P](${member.gear.plannerLinkShortened})\n`;
-          } else {
-            memberListDescription += "0\n";
+          if (subcommand === "list") {
+            description += `- ${member.inGameName}\n`;
+          } else if (subcommand === "gear") {
+            if (member.gear.original && member.gear.shortened) {
+              description += `- ${member.inGameName}: [Gear Link](${member.gear.shortened}) (Updated: ${member.gear.lastUpdated})\n`;
+            } else {
+              description += `- ${member.inGameName}: No gear available\n`;
+            }
+          } else if (subcommand === "planners") {
+            if (member.gear.plannerLink && member.gear.plannerLinkShortened) {
+              description += `- ${member.inGameName}: [Planner Link](${member.gear.plannerLinkShortened})\n`;
+            } else {
+              description += `- ${member.inGameName}: No planner link available\n`;
+            }
           }
         });
 
-        memberListDescription += "\n"; // Add extra line for separation between groups
+        description += "\n"; // Add extra line for separation between groups
       });
 
-      const memberListEmbed = new EmbedBuilder()
+      const embed = new EmbedBuilder()
         .setColor("#3498db")
         .setTitle("Member List")
-        .setDescription(memberListDescription)
+        .setDescription(description)
         .setThumbnail(demetoriIcon)
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
         .setFooter({
@@ -78,7 +97,7 @@ module.exports = {
           iconURL: demetoriIcon,
         });
 
-      await interaction.reply({ embeds: [memberListEmbed] });
+      await interaction.reply({ embeds: [embed] });
     } catch (err) {
       console.error(err);
       interaction.reply("There was an error retrieving the member list");
