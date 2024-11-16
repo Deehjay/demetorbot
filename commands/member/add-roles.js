@@ -132,6 +132,8 @@ module.exports = {
           inGameName: newNickname,
           weapons: weaponRole.name,
           gear: { original: "", shortened: "", lastUpdated: "" },
+          wishlist: [],
+          group: "Ungrouped",
         });
 
         // Save the new member to the database
