@@ -14,6 +14,7 @@ const memberSchema = new mongoose.Schema({
     plannerLinkShortened: String,
   },
   wishlist: Array,
+  group: { type: String },
 });
 
 module.exports = mongoose.model("Members", memberSchema);
