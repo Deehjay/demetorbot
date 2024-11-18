@@ -5,6 +5,7 @@ const {
   demetoriIcon,
 } = require("../../utilities/utilities");
 const Members = require("../../models/Members");
+const { guildOptions } = require("../../utilities/data");
 require("dotenv").config();
 
 module.exports = {
@@ -15,16 +16,41 @@ module.exports = {
       subcommand
         .setName("list")
         .setDescription("Show a list of members and their weapons")
+        .addStringOption((option) =>
+          option
+            .setName("guild")
+            .setDescription("The guild you want to get the list of members of")
+            .addChoices(...guildOptions)
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("gear")
         .setDescription("Show members' gear with links to their gear")
+        .addStringOption((option) =>
+          option
+            .setName("guild")
+            .setDescription(
+              "The guild you want to get the members' gear screenshots of"
+            )
+            .addChoices(...guildOptions)
+            .setRequired(true)
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("planners")
         .setDescription("Show members' planner links")
+        .addStringOption((option) =>
+          option
+            .setName("guild")
+            .setDescription(
+              "The guild you want to get the members' planner links of"
+            )
+            .addChoices(...guildOptions)
+            .setRequired(true)
+        )
     ),
   async execute(interaction) {
     // Log who triggered the command
@@ -41,9 +67,10 @@ module.exports = {
     }
 
     const subcommand = interaction.options.getSubcommand();
+    const selectedGuildRoleId = interaction.options.getString("guild");
 
     try {
-      const members = await Members.find({});
+      const members = await Members.find({ guildRoleId: selectedGuildRoleId });
       const membersByWeapons = {};
 
       // Group members by their weapon combinations
@@ -88,7 +115,12 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor("#3498db")
-        .setTitle("Member List")
+        .setTitle(
+          `Member List - ${
+            guildOptions.find((option) => option.value === selectedGuildRoleId)
+              .name
+          }`
+        )
         .setDescription(description)
         .setThumbnail(demetoriIcon)
         .setAuthor({ name: "Deme", iconURL: demetoriIcon })
