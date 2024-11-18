@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, GuildMemberFlags } = require("discord.js");
 const {
   logCommandIssuer,
   hasAdminPrivileges,
@@ -40,23 +40,29 @@ module.exports = {
       const databaseMember = await Members.findOne({ memberId: member.id });
 
       if (databaseMember) {
-        const roleArr = [
-          guild.roles.cache.find(
-            (role) => role.name.toLowerCase() === "member"
-          ),
-          guild.roles.cache.find(
-            (role) => role.name === databaseMember.weapons
-          ),
-        ];
-
-        await guildMember.roles.remove(roleArr);
         await Members.deleteOne({ memberId: member.id });
-        await interaction.reply(
-          ":white_check_mark: Roles and database entry removed successfully."
-        );
-      } else {
-        await interaction.reply("User does not exist in the database");
       }
+
+      const rolesToRemove = guildMember.roles.cache.filter(
+        (role) => role.name !== "@everyone"
+      );
+
+      if (rolesToRemove.size === 0) {
+        // No roles to remove
+        return interaction.reply(
+          `There are no roles to remove for ${guildMember.displayName}.`
+        );
+      }
+
+      // Remove roles
+      for (const role of rolesToRemove.values()) {
+        await guildMember.roles.remove(role);
+      }
+
+      // Send success reply
+      await interaction.reply(
+        `:white_check_mark: Roles removed successfully for ${guildMember.displayName}.`
+      );
     } catch (err) {
       console.error(err);
       interaction.reply("There was an error removing roles or database entry.");
