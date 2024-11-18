@@ -15,6 +15,8 @@ const memberSchema = new mongoose.Schema({
   },
   wishlist: Array,
   group: { type: String },
+  guild: { type: String },
+  guildRoleId: { type: String },
 });
 
 module.exports = mongoose.model("Members", memberSchema);
