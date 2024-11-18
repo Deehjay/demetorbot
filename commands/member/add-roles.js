@@ -4,6 +4,7 @@ const {
 } = require("../../utilities/utilities.js");
 const { SlashCommandBuilder } = require("discord.js");
 const Members = require("../../models/Members.js");
+const { guildOptions, weaponOptions } = require("../../utilities/data.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,30 +21,14 @@ module.exports = {
         .setName("weapon1")
         .setDescription("Select the first weapon")
         .setRequired(true)
-        .addChoices(
-          { name: "SNS", value: "SNS" },
-          { name: "GS", value: "GS" },
-          { name: "BOW", value: "BOW" },
-          { name: "STAFF", value: "STAFF" },
-          { name: "WAND", value: "WAND" },
-          { name: "DAGGER", value: "DAGGER" },
-          { name: "XBOW", value: "XBOW" }
-        )
+        .addChoices(...weaponOptions)
     )
     .addStringOption((option) =>
       option
         .setName("weapon2")
         .setDescription("Select the second weapon")
         .setRequired(true)
-        .addChoices(
-          { name: "SNS", value: "SNS" },
-          { name: "GS", value: "GS" },
-          { name: "BOW", value: "BOW" },
-          { name: "STAFF", value: "STAFF" },
-          { name: "WAND", value: "WAND" },
-          { name: "DAGGER", value: "DAGGER" },
-          { name: "XBOW", value: "XBOW" }
-        )
+        .addChoices(...weaponOptions)
     )
     .addStringOption((option) =>
       option
@@ -52,6 +37,13 @@ module.exports = {
           "Enter the member's name to update their nickname in the server to their IGN."
         )
         .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("guild")
+        .setDescription("The guild the member will be added to")
+        .setRequired(true)
+        .addChoices(...guildOptions)
     ),
   async execute(interaction) {
     // Log who triggered the command
@@ -72,6 +64,11 @@ module.exports = {
     const member = interaction.options.getUser("name");
     const guildMember = guild.members.cache.get(member.id);
     const newNickname = interaction.options.getString("ign");
+    const assignedGuild = interaction.options.getString("guild");
+    const assignedGuildRoleId =
+      assignedGuild === "Guild 1"
+        ? "1308011055875624961"
+        : "1308011121801953311";
 
     // Find the member role in the server
     const memberRole = guild.roles.cache.find(
@@ -134,16 +131,23 @@ module.exports = {
           gear: { original: "", shortened: "", lastUpdated: "" },
           wishlist: [],
           group: "Ungrouped",
+          guild: assignedGuild,
+          guildRoleId: assignedGuildRoleId,
         });
 
         // Save the new member to the database
         await databaseMember.save();
+
+        const guildRole = guild.roles.cache.find(
+          (role) => role.id === assignedGuildRoleId
+        );
+        guildMember.roles.add(guildRole);
       } else {
         console.log("Member already exists in the database");
       }
 
       await interaction.reply(
-        `Roles have been assigned to ${member.globalName} and they have been added to the database. Their nickname has also been updated to their IGN (${newNickname})`
+        `Roles have been assigned to ${member.globalName} and they have been added to the database. Their nickname has also been updated to their IGN (${newNickname}). They have been assigned to ${assignedGuild}`
       );
     } catch (err) {
       await interaction.reply("There was an error assigning the roles.");
