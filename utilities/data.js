@@ -114,10 +114,27 @@ const eventImages = {
 
 const backupEmbedImage = "https://i.imgur.com/iNR6sxc.png";
 
+const guildOptions = [
+  { name: "Guild 1", value: "1308011055875624961" },
+  { name: "Guild 2", value: "1308011121801953311" },
+];
+
+const weaponOptions = [
+  { name: "SNS", value: "SNS" },
+  { name: "GS", value: "GS" },
+  { name: "BOW", value: "BOW" },
+  { name: "STAFF", value: "STAFF" },
+  { name: "WAND", value: "WAND" },
+  { name: "DAGGER", value: "DAGGER" },
+  { name: "XBOW", value: "XBOW" },
+];
+
 module.exports = {
   eventTypeChoices,
   eventNameChoices,
   eventThumbnails,
   eventImages,
   backupEmbedImage,
+  guildOptions,
+  weaponOptions,
 };
