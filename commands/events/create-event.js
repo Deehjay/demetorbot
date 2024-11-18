@@ -21,8 +21,6 @@ const {
 const Event = require("../../models/Event");
 const { DateTime } = require("luxon");
 
-// FIX BUG LATER - IF BOT RESTARTS WITH NO ACTIVE RESPONSES, RESPONSE DOES NOT GET ADDED TO DATABASE
-
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("create-event")
