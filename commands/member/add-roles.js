@@ -4,7 +4,11 @@ const {
 } = require("../../utilities/utilities.js");
 const { SlashCommandBuilder } = require("discord.js");
 const Members = require("../../models/Members.js");
-const { guildOptions, weaponOptions } = require("../../utilities/data.js");
+const {
+  guildOptions,
+  weaponOptions,
+  guildLookup,
+} = require("../../utilities/data.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -65,10 +69,6 @@ module.exports = {
     const guildMember = guild.members.cache.get(member.id);
     const newNickname = interaction.options.getString("ign");
     const assignedGuild = interaction.options.getString("guild");
-    const assignedGuildRoleId =
-      assignedGuild === "Guild 1"
-        ? "1308011055875624961"
-        : "1308011121801953311";
 
     // Find the member role in the server
     const memberRole = guild.roles.cache.find(
@@ -132,14 +132,14 @@ module.exports = {
           wishlist: [],
           group: "Ungrouped",
           guild: assignedGuild,
-          guildRoleId: assignedGuildRoleId,
+          guildRoleId: assignedGuild,
         });
 
         // Save the new member to the database
         await databaseMember.save();
 
         const guildRole = guild.roles.cache.find(
-          (role) => role.id === assignedGuildRoleId
+          (role) => role.id === assignedGuild
         );
         guildMember.roles.add(guildRole);
       } else {
@@ -147,7 +147,7 @@ module.exports = {
       }
 
       await interaction.reply(
-        `Roles have been assigned to ${member.globalName} and they have been added to the database. Their nickname has also been updated to their IGN (${newNickname}). They have been assigned to ${assignedGuild}`
+        `Roles have been assigned to ${member.globalName} and they have been added to the database. Their nickname has also been updated to their IGN (${newNickname}). They have been assigned to ${guildLookup[assignedGuild]}`
       );
     } catch (err) {
       await interaction.reply("There was an error assigning the roles.");

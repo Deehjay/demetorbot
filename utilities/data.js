@@ -119,6 +119,11 @@ const guildOptions = [
   { name: "Guild 2", value: "1308011121801953311" },
 ];
 
+const guildLookup = {
+  "1308011055875624961": "Guild 1",
+  "1308011121801953311": "Guild 2",
+};
+
 const weaponOptions = [
   { name: "SNS", value: "SNS" },
   { name: "GS", value: "GS" },
@@ -137,4 +142,5 @@ module.exports = {
   backupEmbedImage,
   guildOptions,
   weaponOptions,
+  guildLookup,
 };
