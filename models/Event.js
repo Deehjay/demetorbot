@@ -9,6 +9,7 @@ const eventSchema = new mongoose.Schema({
     date: { type: String, required: true },
     time: { type: String, required: true },
     dateTime: { type: Date, required: true },
+    guildRoleId: { type: String, required: true },
   },
   responses: {
     type: [
