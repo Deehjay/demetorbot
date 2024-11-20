@@ -89,12 +89,14 @@ module.exports = {
     // Get members in the voice channel
     const membersInVoice = voiceChannel.members.map((member) => member.user.id);
 
-    // Get all members with the "Member" role
-    const memberRole = guild.roles.cache.find((role) => role.name === "Member");
+    // Get all members with the role that was assigned to the event
+    const eventGuildRole = guild.roles.cache.find(
+      (role) => role.id === event.eventDetails.guildRoleId
+    );
     const allMembers = await guild.members.fetch(); // Fetch all members to access roles
 
     const membersWithRole = allMembers.filter((member) =>
-      member.roles.cache.has(memberRole.id)
+      member.roles.cache.has(eventGuildRole.id)
     );
 
     // Separate responses based on conditions
@@ -126,7 +128,7 @@ module.exports = {
       }
     });
 
-    // Find members with "Member" role who did not respond
+    // Find members with the assigned guild role who did not respond
     const respondedUserIds = event.responses.map((response) => response.userId);
 
     membersWithRole.forEach((member) => {
