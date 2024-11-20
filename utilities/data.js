@@ -122,6 +122,13 @@ const guildOptions = [
 const guildLookup = {
   "1308011055875624961": "Guild 1",
   "1308011121801953311": "Guild 2",
+  "1297834278549192735": "Member",
+};
+
+const eventChannelLookup = {
+  "1308011055875624961": "1308576095737483336", // Guild 1
+  "1308011121801953311": "1308576152373297162", // Guild 2
+  "1297834278549192735": "1302006182155915396", // Member
 };
 
 const weaponOptions = [
@@ -143,4 +150,5 @@ module.exports = {
   guildOptions,
   weaponOptions,
   guildLookup,
+  eventChannelLookup,
 };
