@@ -17,6 +17,8 @@ const {
   eventImages,
   backupEmbedImage,
   eventThumbnails,
+  guildLookup,
+  eventChannelLookup,
 } = require("../../utilities/data");
 const Event = require("../../models/Event");
 const { DateTime } = require("luxon");
@@ -52,6 +54,17 @@ module.exports = {
           "Time the event takes place. HH:MM format and must be CET time"
         )
         .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("guild")
+        .setDescription("Which guild this event is for")
+        .setRequired(true)
+        .addChoices(
+          { name: "Guild 1", value: "1308011055875624961" },
+          { name: "Guild 2", value: "1308011121801953311" },
+          { name: "Member", value: "1297834278549192735" }
+        )
     ),
   async autocomplete(interaction) {
     const focusedValue = interaction.options.getFocused().toLowerCase();
@@ -79,6 +92,7 @@ module.exports = {
     const eventName = interaction.options.getString("event_name");
     const eventDate = interaction.options.getString("event_date");
     const eventTime = interaction.options.getString("event_time");
+    const eventGuildId = interaction.options.getString("guild");
     const eventCreator = interaction.user.username;
 
     console.log(
@@ -103,11 +117,7 @@ module.exports = {
         ephemeral: true,
       });
     }
-    // Parsing and converting user-entered time to CET
     const [hours, minutes] = eventTime.split(":").map(Number);
-    // Create date object in UTC to ensure consistent base timezone handling
-    // Convert the event to CET by interpreting the user’s input as local time
-    // Create a DateTime object based on user's input, assuming it's in their local time zone
     const cetDateTime = DateTime.fromObject(
       { year, month, day, hour: hours, minute: minutes },
       { zone: "Europe/Paris" } // CET/CEST timezone
@@ -145,14 +155,14 @@ module.exports = {
     let absentCount = 0;
     const userResponses = [];
     const dmCollectors = new Map();
-    const memberRole = interaction.guild.roles.cache.find(
-      (role) => role.name === "Member"
+    const selectedRole = interaction.guild.roles.cache.find(
+      (role) => role.id === eventGuildId
     );
-    const memberMention = memberRole
-      ? `<@&${memberRole.id}> **NEW EVENT:**\n`
+    const selectedRoleMention = selectedRole
+      ? `<@&${selectedRole.id}> **NEW EVENT:**\n`
       : "";
     const scheduleChannel = interaction.guild.channels.cache.get(
-      "1302006182155915396"
+      eventChannelLookup[eventGuildId]
     );
 
     const row = new ActionRowBuilder().addComponents(
@@ -171,7 +181,7 @@ module.exports = {
     );
 
     const message = await scheduleChannel.send({
-      content: memberMention,
+      content: selectedRoleMention,
       embeds: [eventEmbed],
       components: [row],
       fetchReply: true,
@@ -188,6 +198,7 @@ module.exports = {
         date: eventDate,
         time: eventTime,
         dateTime: cetDateTime,
+        guildRoleId: eventGuildId,
       },
       responses: userResponses,
     });
@@ -344,14 +355,16 @@ module.exports = {
         }
         await i.reply({
           content: `You have selected: ${
-            isAttending ? "Attending" : "Not Attending"
+            isAttending
+              ? `Attending for event "${eventName}" on ${eventDate}.`
+              : `Not Attending for event "${eventName}" on ${eventDate}.`
           }`,
           ephemeral: true,
         });
       }
 
       console.log(
-        `[Event] ${userNickname} marked as not ${
+        `[Event] ${userNickname} marked as ${
           isAttending ? "attending" : "not attending"
         } for event "${eventName}" on ${eventDate}.`
       );
