@@ -126,9 +126,8 @@ const guildLookup = {
 };
 
 const eventChannelLookup = {
-  "1308011055875624961": "1308576095737483336", // Guild 1
-  "1308011121801953311": "1308576152373297162", // Guild 2
-  "1297834278549192735": "1302006182155915396", // Member
+  Mandatory: "1302006182155915396",
+  "Non-mandatory": "1311058683622330419",
 };
 
 const weaponOptions = [
@@ -141,6 +140,36 @@ const weaponOptions = [
   { name: "XBOW", value: "XBOW" },
 ];
 
+const wishlistItemChoices = [
+  "Adentus's Gargantuan Greatsword",
+  "Aridus's Gnarled Voidstaff",
+  "Ascendend Guardian Pants",
+  "Band of Universal Power",
+  "Belt of Bloodlust",
+  "Blessed Templar Cloak",
+  "Chernobog's Blade of Beheading",
+  "Collar of Decimation",
+  "Ebon Roar Gauntlets",
+  "Excavator's Mysterious Scepter",
+  "Forsaken Embrace",
+  "Gauntlets of the Field General",
+  "Helm of the Field General",
+  "Junobote's Juggernaut Warblade",
+  "Kowazan's Twilight Daggers",
+  "Nirma's Sword of Echos",
+  "Phantom Wolf Greaves",
+  "Phantom Wolf Mask",
+  "Shadow Harvester Boots",
+  "Shadow Harvester Mask",
+  "Shadow Harvester Trousers",
+  "Shock Commander Greaves",
+  "Shock Commander Sabatons",
+  "Shock Commander Visor",
+  "Swirling Essence Robe",
+  "Talus's Crystalline Staff",
+  "Wrapped Coin Necklace",
+];
+
 module.exports = {
   eventTypeChoices,
   eventNameChoices,
@@ -151,4 +180,5 @@ module.exports = {
   weaponOptions,
   guildLookup,
   eventChannelLookup,
+  wishlistItemChoices,
 };
