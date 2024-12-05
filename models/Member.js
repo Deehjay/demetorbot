@@ -13,10 +13,17 @@ const memberSchema = new mongoose.Schema({
     plannerLink: String,
     plannerLinkShortened: String,
   },
-  wishlist: Array,
+  wishlist: [
+    {
+      item: String,
+      slot: Number,
+      cooldownEnd: String,
+      slotLastUpdated: String,
+    },
+  ],
   group: { type: String },
   guild: { type: String },
   guildRoleId: { type: String },
 });
 
-module.exports = mongoose.model("Members", memberSchema);
+module.exports = mongoose.model("Member", memberSchema);

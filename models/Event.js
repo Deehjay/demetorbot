@@ -5,10 +5,14 @@ const eventSchema = new mongoose.Schema({
   channelId: { type: String, required: true },
   eventType: { type: String, required: true },
   eventName: { type: String, required: true },
+  eventCreator: { type: String, required: true },
+  attendingCount: { type: Number, required: true, default: 0 },
+  absentCount: { type: Number, required: true, default: 0 },
   eventDetails: {
     date: { type: String, required: true },
     time: { type: String, required: true },
     dateTime: { type: Date, required: true },
+    isMandatory: { type: Boolean, required: true },
   },
   responses: {
     type: [
