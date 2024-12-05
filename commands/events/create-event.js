@@ -1,26 +1,19 @@
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-} = require("discord.js");
-const {
-  demetoriIcon,
-  logCommandIssuer,
-  hasAdminPrivileges,
-  requestAbsenceReason,
-} = require("../../utilities/utilities");
-const {
-  eventNameChoices,
-  eventTypeChoices,
-  eventImages,
-  backupEmbedImage,
-  eventThumbnails,
-  eventChannelLookup,
-} = require("../../utilities/data");
-const Event = require("../../models/Event");
+const { SlashCommandBuilder } = require("discord.js");
+const { eventNameChoices, eventTypeChoices, eventChannelLookup } = require("../../utilities/data");
 const { DateTime } = require("luxon");
+const {
+  generateEventEmbed,
+  generateReactionButtons,
+  generateEventConcludedEmbed,
+  requestAbsenceReason,
+  generateReactionSummaryEmbed,
+} = require("../../utilities/event-utils");
+const { validateDateFormat, validateTimeFormat } = require("../../utilities/validation");
+const {
+  saveEventToDatabase,
+  updateEventResponseInDatabase,
+} = require("../../services/event-service");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -49,9 +42,7 @@ module.exports = {
     .addStringOption((option) =>
       option
         .setName("event_time")
-        .setDescription(
-          "Time the event takes place. HH:MM format and must be CET time"
-        )
+        .setDescription("Time the event takes place. HH:MM format and must be CET time")
         .setRequired(true)
     )
     .addStringOption((option) =>
@@ -61,7 +52,8 @@ module.exports = {
         .setRequired(true)
         .addChoices(
           { name: "Mandatory", value: "Mandatory" },
-          { name: "Non-mandatory", value: "Non-mandatory" }
+          { name: "Non-mandatory", value: "Non-mandatory" },
+          { name: "test", value: "test" }
         )
     ),
   async autocomplete(interaction) {
@@ -78,8 +70,7 @@ module.exports = {
     );
   },
   async execute(interaction) {
-    const isAdmin = await hasAdminPrivileges(interaction);
-    if (!isAdmin) {
+    if (!hasAdminPrivileges(interaction)) {
       return interaction.reply({
         content: "You do not have permission to use this command.",
         ephemeral: true,
@@ -91,238 +82,144 @@ module.exports = {
     const eventDate = interaction.options.getString("event_date");
     const eventTime = interaction.options.getString("event_time");
     const requirementType = interaction.options.getString("requirement_type");
-    const isMandatory =
-      interaction.options.getString("requirement_type") === "Mandatory";
+    const isMandatory = requirementType === "Mandatory" || requirementType === "test";
     const eventCreator = interaction.user.username;
 
-    console.log(
-      `[Event] ${eventCreator} is creating event: ${eventName} on ${eventDate}`
-    );
+    console.log(`[Event] ${eventCreator} is creating event: ${eventName} on ${eventDate}`);
 
-    const dateFormat = /^(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})$/;
-    if (!dateFormat.test(eventDate)) {
+    if (!validateDateFormat(eventDate)) {
       return interaction.reply({
-        content:
-          "Please provide a valid date in DD/MM/YYYY format (e.g., 25/12/2023).",
+        content: "Please provide a valid date in DD/MM/YYYY format (e.g., 25/12/2023).",
         ephemeral: true,
       });
     }
 
+    if (!validateTimeFormat(eventTime)) {
+      return interaction.reply({
+        content: "Please provide a valid time in 24-hour format (e.g., 14:30 for 2:30 PM).",
+        ephemeral: true,
+      });
+    }
+
+    // Convert date and time to CET timezone for creating events, as most members are in
+    // European timezone.
     const [day, month, year] = eventDate.split("/").map(Number);
-    const timeFormat = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeFormat.test(eventTime)) {
-      return interaction.reply({
-        content:
-          "Please provide a valid time in 24-hour format (e.g., 14:30 for 2:30 PM).",
-        ephemeral: true,
-      });
-    }
     const [hours, minutes] = eventTime.split(":").map(Number);
+
     const cetDateTime = DateTime.fromObject(
       { year, month, day, hour: hours, minute: minutes },
       { zone: "Europe/Paris" } // CET/CEST timezone
     );
 
-    const unixTimestamp = Math.floor(cetDateTime.toSeconds());
-    const now = DateTime.now(); // Now in user's local timezone
-    const collectorDuration = cetDateTime.diff(now).toObject().milliseconds;
+    const now = DateTime.now();
+    const reactionCollectorDuration = cetDateTime.diff(now).toObject().milliseconds;
 
-    if (collectorDuration <= 0) {
+    if (reactionCollectorDuration <= 0) {
       return interaction.reply({
         content: "The date and time provided must be in the future.",
         ephemeral: true,
       });
     }
 
-    const thumbnailUrl = eventThumbnails[eventType] || demetoriIcon;
-    const eventImageUrl = eventImages[eventType] || backupEmbedImage;
-    const embedDescription = isMandatory
-      ? "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nThis is a **mandatory** event. If you will be absent, please respond to the bot's DM with a reason for absence."
-      : "**Click the ✅ button if you're attending, or ❌ if you aren't.**\n\nThis is a **non-mandatory** event.";
-
-    const eventEmbed = new EmbedBuilder()
-      .setColor("#00ff00")
-      .setTitle(`⚔️ ${eventName} ⚔️`)
-      .setDescription(embedDescription)
-      .setThumbnail(thumbnailUrl)
-      .setAuthor({ name: "Deme", iconURL: demetoriIcon })
-      .addFields({
-        name: "🕰️ Time:",
-        value: `<t:${unixTimestamp}:R>`,
-      })
-      .setImage(eventImageUrl);
-
     let attendingCount = 0;
     let absentCount = 0;
     const userResponses = [];
-    const dmCollectors = new Map();
 
-    // <@&1297834278549192735> - Member
-    const messageMentionString = `**NEW ${
-      isMandatory ? "MANDATORY" : "NON-MANDATORY"
-    } EVENT:**\n`;
+    const eventEmbedDetails = {
+      eventName,
+      eventType,
+      unixTimestamp: Math.floor(cetDateTime.toSeconds()),
+      isMandatory,
+    };
+
+    const eventEmbed = generateEventEmbed(eventEmbedDetails);
+    const reactionButtonsRow = generateReactionButtons(attendingCount, absentCount, false);
 
     const scheduleChannel = interaction.guild.channels.cache.get(
       eventChannelLookup[requirementType]
     );
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("attend_event")
-        .setLabel(`✅ ${attendingCount}`)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId("not_attending_event")
-        .setLabel(`❌ ${absentCount}`)
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId("responses")
-        .setLabel("Responses")
-        .setStyle(ButtonStyle.Primary)
-    );
-
+    // <@&1297834278549192735> - Member
     const message = await scheduleChannel.send({
-      content: messageMentionString,
+      content: `**NEW ${isMandatory ? "MANDATORY" : "NON-MANDATORY"} EVENT:**\n`,
       embeds: [eventEmbed],
-      components: [row],
+      components: [reactionButtonsRow],
       fetchReply: true,
     });
 
     // Store event in the database
-    const newEvent = new Event({
+    const newEvent = await saveEventToDatabase({
       eventId: message.id,
       channelId: scheduleChannel.id,
       eventType,
       eventName,
+      eventCreator,
+      attendingCount,
+      absentCount,
       eventDetails: {
         date: eventDate,
         time: eventTime,
         dateTime: cetDateTime,
+        isMandatory: isMandatory,
       },
       responses: userResponses,
     });
     const eventDocId = newEvent._id;
 
-    try {
-      await newEvent.save();
-      console.log(
-        `[Event] Event "${eventName}" on ${eventDate} created by ${eventCreator} has been saved to the database.`
-      );
-    } catch (error) {
-      console.error(
-        `[Database Error] Failed to save event "${eventName}" on ${eventDate}: ${error}`
-      );
-    }
-
+    // Informs command issuer that even hast been posted successfully
     await interaction.reply({
       content: `Event has been created and posted: ${eventName} on ${eventDate}.`,
     });
 
-    const collector = message.createMessageComponentCollector({
-      time: collectorDuration,
+    // Create a message component collector to listen for reactions
+    const reactionCollector = message.createMessageComponentCollector({
+      time: reactionCollectorDuration,
     });
 
-    collector.on("collect", async (i) => {
+    const dmCollectors = new Map();
+
+    // Reaction collection to listen for attending or not attending responses
+    reactionCollector.on("collect", async (i) => {
+      if (i.customId === "event_responses") return;
+
       await i.deferReply({ ephemeral: true });
 
       const userId = i.user.id;
-      const isAttending = i.customId === "attend_event";
+      const isAttending = i.customId === "event_attending";
       const guildMember = interaction.guild.members.cache.get(userId);
       const userNickname = guildMember?.nickname || i.user.username;
 
-      if (i.customId === "responses") {
-        const isOfficer = guildMember.roles.cache.some(
-          (role) => role.name === "Officer"
-        );
-
-        const attendingUsersString =
-          userResponses
-            .filter((entry) => entry.status === "attending")
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((entry) => `${entry.name}`)
-            .join("\n") || "No one yet";
-
-        const notAttendingUsersString =
-          userResponses
-            .filter((entry) => entry.status === "not_attending")
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((entry) => `${entry.name}`)
-            .join("\n") || "No one yet";
-
-        let unresponsiveUsersString = "";
-
-        if (isOfficer) {
-          const respondedUserIds = new Set(
-            userResponses.map((entry) => entry.userId)
-          );
-          const allGuildMembers = interaction.guild.members.cache
-            .filter((member) => !member.user.bot)
-            .sort((a, b) =>
-              (a.nickname || a.user.username).localeCompare(
-                b.nickname || b.user.username
-              )
-            );
-
-          const unresponsiveUsers = allGuildMembers
-            .filter((member) => !respondedUserIds.has(member.user.id))
-            .map((member) => member.nickname || member.user.username);
-
-          unresponsiveUsersString =
-            unresponsiveUsers.join("\n") || "No unresponsive members";
-        }
-
-        let replyContent = `**Attending:**\n${attendingUsersString}\n\n**Not Attending:**\n${notAttendingUsersString}`;
-
-        if (isOfficer) {
-          replyContent += `\n\n**Unresponsive:**\n${unresponsiveUsersString}`;
-        }
-
-        await i.editReply({
-          content: replyContent,
-        });
-        return;
-      }
-
       // Check if the user already has an existing response
-      let existingResponse = userResponses.find(
-        (entry) => entry.userId === userId
-      );
+      let existingResponse = userResponses.find((entry) => entry.userId === userId);
 
       if (existingResponse) {
+        // If member is changing from attending to not attending
         if (existingResponse.status === "attending" && !isAttending) {
           await i.editReply({
             content: `You have selected: Not Attending for event "${eventName}" on ${eventDate}.`,
           });
+
           attendingCount--;
           absentCount++;
           existingResponse.status = "not_attending";
+
           try {
-            await Event.updateOne(
-              { _id: eventDocId, "responses.userId": userId },
+            await updateEventResponseInDatabase(
+              eventDocId,
               {
-                $set: {
-                  "responses.$.status": "not_attending",
-                  "responses.$.name": userNickname,
-                },
-              }
+                $set: { "responses.$.status": "not_attending" },
+              },
+              ["responses.userId", userId]
             );
+            // If event is mandatory, request reason for absence
             if (isMandatory) {
-              await requestAbsenceReason(
-                i,
-                userId,
-                userNickname,
-                dmCollectors,
-                eventDocId,
-                cetDateTime,
-                eventName,
-                eventDate
-              );
+              await requestAbsenceReason(i, userId, dmCollectors, newEvent);
             }
           } catch (error) {
             console.error(
               `[Database Error] Failed to update response for ${userNickname}: ${error}`
             );
           }
+          // If member is changing from not attending to attending
         } else if (existingResponse.status === "not_attending" && isAttending) {
           await i.editReply({
             content: `You have selected: Attending for event "${eventName}" on ${eventDate}.`,
@@ -331,16 +228,20 @@ module.exports = {
           attendingCount++;
           existingResponse.status = "attending";
           try {
-            await Event.updateOne(
-              { _id: eventDocId, "responses.userId": userId },
+            await updateEventResponseInDatabase(
+              eventDocId,
               {
                 $set: {
                   "responses.$.status": "attending",
                   "responses.$.name": userNickname,
                 },
-                $unset: { "responses.$.reason": "" },
-              }
+                $unset: {
+                  "responses.$.reason": "",
+                },
+              },
+              ["responses.userId", userId]
             );
+
             console.log(
               `[Event] ${userNickname} switched to attending for event "${eventName}" on ${eventDate}.`
             );
@@ -349,7 +250,7 @@ module.exports = {
               `[Database Error] Failed to update event response for ${userNickname}: ${error}`
             );
           }
-
+          // If event was mandatory and user is switching to attending, stop the absence reason collector
           if (isMandatory) {
             const existingCollector = dmCollectors.get(userId);
             if (existingCollector) {
@@ -366,6 +267,7 @@ module.exports = {
           });
         }
       } else {
+        // Create a new response entry if user is responding to the event for the first time
         const newEntry = {
           userId: userId,
           name: userNickname,
@@ -373,38 +275,16 @@ module.exports = {
         };
         userResponses.push(newEntry);
 
-        if (isAttending) {
-          attendingCount++;
-          await Event.updateOne(
-            { _id: eventDocId },
-            { $push: { responses: newEntry } }
-          );
-        } else {
-          absentCount++;
-          await Event.updateOne(
-            { _id: eventDocId },
-            { $push: { responses: newEntry } }
-          );
+        await updateEventResponseInDatabase(eventDocId, { $push: { responses: newEntry } });
 
-          if (isMandatory) {
-            await requestAbsenceReason(
-              i,
-              userId,
-              userNickname,
-              dmCollectors,
-              eventDocId,
-              cetDateTime,
-              eventName,
-              eventDate
-            );
-          }
+        isAttending ? attendingCount++ : absentCount++;
+
+        if (isMandatory && !isAttending) {
+          await requestAbsenceReason(i, userId, dmCollectors, newEvent);
         }
-        if (
-          i.customId === "attend_event" ||
-          i.customId === "not_attending_event"
-        ) {
-          console.log("here");
 
+        // Responds to the user with their initial selection
+        if (i.customId === "event_attending" || i.customId === "event_absent") {
           await i.editReply({
             content: `You have selected: ${
               isAttending
@@ -421,117 +301,38 @@ module.exports = {
         } for event "${eventName}" on ${eventDate}.`
       );
 
-      const updatedEmbed = new EmbedBuilder()
-        .setColor("#00ff00")
-        .setTitle(`⚔️ ${eventName} ⚔️`)
-        .setDescription(embedDescription)
-        .setThumbnail(thumbnailUrl)
-        .setAuthor({ name: "Deme", iconURL: demetoriIcon })
-        .addFields({
-          name: "🕰️ Time:",
-          value: `<t:${unixTimestamp}:R>`,
-        })
-        .setImage(eventImageUrl);
-
-      const updatedRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("attend_event")
-          .setLabel(`✅ ${attendingCount}`)
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId("not_attending_event")
-          .setLabel(`❌ ${absentCount}`)
-          .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId("responses")
-          .setLabel("Responses")
-          .setStyle(ButtonStyle.Primary)
-      );
-
-      await message.edit({ embeds: [updatedEmbed], components: [updatedRow] });
+      // Update message with updated reaction counts
+      const updatedReactionButtonsRow = generateReactionButtons(attendingCount, absentCount, false);
+      await message.edit({ components: [updatedReactionButtonsRow] });
     });
 
-    collector.on("end", async () => {
+    reactionCollector.on("end", async () => {
       console.log(
         `[Event] Event "${eventName}" on ${eventDate} has ended. Collecting responses is now closed.`
       );
-      const eventConcludedEmbed = new EmbedBuilder()
-        .setColor("#00ff00")
-        .setTitle(`⚔️ ${eventName} ⚔️`)
-        .setDescription(
-          "Registration is no longer available - event has passed."
-        )
-        .setThumbnail(thumbnailUrl)
-        .setAuthor({ name: "Deme", iconURL: demetoriIcon })
-        .setImage(eventImageUrl);
 
-      const disabledRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("attend_event")
-          .setLabel(`✅ ${attendingCount}`)
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-        new ButtonBuilder()
-          .setCustomId("not_attending_event")
-          .setLabel(`❌ ${absentCount}`)
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-        new ButtonBuilder()
-          .setCustomId("responses")
-          .setLabel("Responses")
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(true)
-      );
+      // When event concludes, update the message with reactions disabled
+      const eventConcludedEmbed = generateEventConcludedEmbed(eventEmbedDetails);
+      const disabledReactionButtonsRow = generateReactionButtons(attendingCount, absentCount, true);
 
       await message.edit({
-        components: [disabledRow],
+        components: [disabledReactionButtonsRow],
         embeds: [eventConcludedEmbed],
       });
 
+      // If event is mandatory, generate a summary of reactions and send it to the attendance-tracking channel
       if (isMandatory) {
-        const attendanceTrackingChannel = interaction.guild.channels.cache.get(
-          "1302717156038934528"
-        );
+        const attendanceTrackingChannel =
+          interaction.guild.channels.cache.get("1302717156038934528");
 
         if (attendanceTrackingChannel) {
-          // Fetch the final version of the event from the database to ensure it has the latest reasons
-          const finalEvent = await Event.findById(eventDocId);
-          if (!finalEvent) {
-            console.error(
-              `[Database Error] Event with ID ${eventDocId} not found.`
-            );
-            return;
-          }
-          const attendanceSummary = `**Attending (${attendingCount}):**\n${
-            finalEvent.responses
-              .filter((entry) => entry.status === "attending")
-              .map((entry) => entry.name)
-              .join("\n") || "No one"
-          }\n\n**Not Attending (${absentCount}):**\n${
-            finalEvent.responses
-              .filter((entry) => entry.status === "not_attending")
-              .map(
-                (entry) =>
-                  `${entry.name} - ${entry.reason || "No reason provided"}`
-              )
-              .join("\n") || "No one"
-          }`;
+          const reactionSummaryEmbed = await generateReactionSummaryEmbed(
+            eventDocId,
+            attendingCount,
+            absentCount
+          );
 
-          const attendanceEmbed = new EmbedBuilder()
-            .setColor(0x0099ff)
-            .setTitle(`**REACTION summary for ${eventName} on ${eventDate}:**`)
-            .setAuthor({
-              name: "Deme",
-              iconURL: demetoriIcon,
-            })
-            .setDescription(`${attendanceSummary}`)
-            .setThumbnail(thumbnailUrl)
-            .setFooter({
-              text: `Total responses: ${userResponses.length}`,
-              iconURL: demetoriIcon,
-            });
-
-          await attendanceTrackingChannel.send({ embeds: [attendanceEmbed] });
+          await attendanceTrackingChannel.send({ embeds: [reactionSummaryEmbed] });
         }
       }
     });
