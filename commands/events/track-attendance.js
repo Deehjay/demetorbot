@@ -1,11 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Event = require("../../models/Event");
 const { eventNameChoices, eventImages } = require("../../utilities/data");
-const {
-  demetoriIcon,
-  logCommandIssuer,
-  hasAdminPrivileges,
-} = require("../../utilities/utilities");
+const { demetoriIcon, logCommandIssuer } = require("../../utilities/utilities");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("track-attendance")
@@ -46,9 +43,8 @@ module.exports = {
       });
     }
 
-    const attendanceTrackingTextChannel = interaction.guild.channels.cache.get(
-      "1302717156038934528"
-    );
+    const attendanceTrackingTextChannel =
+      interaction.guild.channels.cache.get("1302717156038934528");
 
     if (!attendanceTrackingTextChannel) {
       return interaction.reply({
@@ -75,9 +71,7 @@ module.exports = {
     }
 
     // Get the "Mandatory events" voice channel members
-    const voiceChannel = interaction.guild.channels.cache.get(
-      "1301604842875256924"
-    );
+    const voiceChannel = interaction.guild.channels.cache.get("1301604842875256924");
 
     if (!voiceChannel) {
       return interaction.reply({
@@ -93,9 +87,7 @@ module.exports = {
     const memberRole = guild.roles.cache.find((role) => role.name === "Member");
     const allMembers = await guild.members.fetch(); // Fetch all members to access roles
 
-    const membersWithRole = allMembers.filter((member) =>
-      member.roles.cache.has(memberRole.id)
-    );
+    const membersWithRole = allMembers.filter((member) => member.roles.cache.has(memberRole.id));
 
     // Separate responses based on conditions
     const attendingInVoice = [];
@@ -133,15 +125,9 @@ module.exports = {
       const userId = member.user.id;
       const userName = member.displayName || member.user.username;
 
-      if (
-        !respondedUserIds.includes(userId) &&
-        !membersInVoice.includes(userId)
-      ) {
+      if (!respondedUserIds.includes(userId) && !membersInVoice.includes(userId)) {
         noResponseNotInVoice.push(userName);
-      } else if (
-        !respondedUserIds.includes(userId) &&
-        membersInVoice.includes(userId)
-      ) {
+      } else if (!respondedUserIds.includes(userId) && membersInVoice.includes(userId)) {
         noResponseInVoice.push(userName);
       }
     });

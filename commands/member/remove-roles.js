@@ -1,9 +1,7 @@
-const { SlashCommandBuilder, GuildMemberFlags } = require("discord.js");
-const {
-  logCommandIssuer,
-  hasAdminPrivileges,
-} = require("../../utilities/utilities");
-const Members = require("../../models/Members");
+const { SlashCommandBuilder } = require("discord.js");
+const { logCommandIssuer } = require("../../utilities/utilities");
+const Member = require("../../models/Member");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -37,21 +35,17 @@ module.exports = {
 
     try {
       // Find the member in db
-      const databaseMember = await Members.findOne({ memberId: member.id });
+      const databaseMember = await Member.findOne({ memberId: member.id });
 
       if (databaseMember) {
-        await Members.deleteOne({ memberId: member.id });
+        await Member.deleteOne({ memberId: member.id });
       }
 
-      const rolesToRemove = guildMember.roles.cache.filter(
-        (role) => role.name !== "@everyone"
-      );
+      const rolesToRemove = guildMember.roles.cache.filter((role) => role.name !== "@everyone");
 
       if (rolesToRemove.size === 0) {
         // No roles to remove
-        return interaction.reply(
-          `There are no roles to remove for ${guildMember.displayName}.`
-        );
+        return interaction.reply(`There are no roles to remove for ${guildMember.displayName}.`);
       }
 
       // Remove roles

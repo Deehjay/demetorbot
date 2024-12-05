@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const Members = require("../../models/Members");
+const Member = require("../../models/Member");
 const {
-  logCommandIssuer,
-  hasAdminPrivileges,
   demetoriIcon,
   gearExample,
   processGearScreenshot,
@@ -10,6 +8,7 @@ const {
   getCurrentDate,
   deleteScreenShotFromCloud,
 } = require("../../utilities/utilities");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,15 +26,11 @@ module.exports = {
     const member = interaction.options.getUser("name");
     const guildMember = interaction.guild.members.cache.get(member.id);
     const memberNickname = guildMember.nickname || member.username;
-    console.log(
-      `[Gear Update] ${commandIssuer.username} triggered the update-gear command.`
-    );
+    console.log(`[Gear Update] ${commandIssuer.username} triggered the update-gear command.`);
 
     // Check if the user has permission to update the specified user's gear
     if (!isAdmin) {
-      const hasMemberRole = interaction.member.roles.cache.some(
-        (role) => role.name === "Member"
-      );
+      const hasMemberRole = interaction.member.roles.cache.some((role) => role.name === "Member");
 
       if (!hasMemberRole) {
         console.log(
@@ -55,9 +50,7 @@ module.exports = {
         });
       }
     }
-    console.log(
-      `[Gear Update] Prompting ${memberNickname} to provide gear screenshot.`
-    );
+    console.log(`[Gear Update] Prompting ${memberNickname} to provide gear screenshot.`);
 
     const dmPromptEmbed = new EmbedBuilder()
       .setColor("#3498db")
@@ -77,9 +70,7 @@ module.exports = {
       content: `You have been prompted to update your gear.`,
       ephemeral: true,
     });
-    const botCommandsChannel = interaction.guild.channels.cache.get(
-      "1300435235577528444"
-    );
+    const botCommandsChannel = interaction.guild.channels.cache.get("1300435235577528444");
     await botCommandsChannel.send(
       `> :timer: Prompted ${memberNickname} to send a screenshot of their gear.`
     );
@@ -97,16 +88,11 @@ module.exports = {
       if (message.attachments.size > 0) {
         const attachment = message.attachments.first();
         const isImage =
-          attachment.contentType?.startsWith("image/") ||
-          /\.(jpg|jpeg|png)$/i.test(attachment.url);
+          attachment.contentType?.startsWith("image/") || /\.(jpg|jpeg|png)$/i.test(attachment.url);
 
         if (isImage) {
-          imageUrl = attachment.url.includes("?")
-            ? attachment.url
-            : attachment.proxyURL;
-          console.log(
-            `[Gear Update] ${memberNickname} provided a valid attachment.`
-          );
+          imageUrl = attachment.url.includes("?") ? attachment.url : attachment.proxyURL;
+          console.log(`[Gear Update] ${memberNickname} provided a valid attachment.`);
         }
       } else if (message.content) {
         const urlPattern = /(https?:\/\/[^\s]+(?:png|jpg|jpeg|bmp)[^\s]*)/i;
@@ -120,7 +106,7 @@ module.exports = {
 
       if (imageUrl) {
         try {
-          const memberData = await Members.findOne({ memberId: member.id });
+          const memberData = await Member.findOne({ memberId: member.id });
           if (memberData && memberData.gear && memberData.gear.original) {
             const oldFileName = memberData.gear.original.split("/").pop();
             const fileWasDeleted = await deleteScreenShotFromCloud(oldFileName);
@@ -133,7 +119,7 @@ module.exports = {
           const uploadedGearImage = await processGearScreenshot(imageUrl);
           const shortenedGearUrl = await shortenUrl(uploadedGearImage);
 
-          await Members.findOneAndUpdate(
+          await Member.findOneAndUpdate(
             { memberId: member.id },
             {
               $set: {
@@ -146,15 +132,10 @@ module.exports = {
           botCommandsChannel.send(
             `> ✅ ${memberNickname} has provided a link to their gear: ${shortenedGearUrl} - Database has been updated.`
           );
-          console.log(
-            `[Database] Updated gear for ${memberNickname} in the database.`
-          );
+          console.log(`[Database] Updated gear for ${memberNickname} in the database.`);
           messageCollector.stop("success");
         } catch (err) {
-          console.error(
-            `[Database Error] Failed to update gear for ${memberNickname}:`,
-            err
-          );
+          console.error(`[Database Error] Failed to update gear for ${memberNickname}:`, err);
           messageCollector.stop("db_error");
         }
       } else {
@@ -169,9 +150,7 @@ module.exports = {
 
     messageCollector.on("end", (collected, reason) => {
       if (reason === "time") {
-        console.log(
-          `[Gear Update] Collection timed out for ${memberNickname}.`
-        );
+        console.log(`[Gear Update] Collection timed out for ${memberNickname}.`);
         botCommandsChannel.send(
           `> ❌ Listening timed out. ${memberNickname} did not respond with a screenshot of their gear in time`
         );
@@ -179,14 +158,10 @@ module.exports = {
           "Listening timed out. You did not respond with a screenshot of your gear in time."
         );
       } else if (reason === "success") {
-        console.log(
-          `[Gear Update] Gear successfully updated for ${memberNickname}.`
-        );
+        console.log(`[Gear Update] Gear successfully updated for ${memberNickname}.`);
         dmChannel.send("Thank you for providing a screenshot of your gear! 😊");
       } else if (reason === "db_error") {
-        console.log(
-          `[Gear Update] Error updating database for ${memberNickname}.`
-        );
+        console.log(`[Gear Update] Error updating database for ${memberNickname}.`);
         botCommandsChannel.send(
           `> ❌ There was an issue updating ${memberNickname}'s information in the database. Please check the logs for more details.`
         );

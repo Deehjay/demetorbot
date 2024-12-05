@@ -1,24 +1,15 @@
-const {
-  hasAdminPrivileges,
-  logCommandIssuer,
-} = require("../../utilities/utilities.js");
+const { logCommandIssuer } = require("../../utilities/utilities.js");
 const { SlashCommandBuilder } = require("discord.js");
-const Members = require("../../models/Members.js");
-const {
-  guildOptions,
-  weaponOptions,
-  guildLookup,
-} = require("../../utilities/data.js");
+const Member = require("../../models/Member.js");
+const { guildOptions, weaponOptions, guildLookup } = require("../../utilities/data.js");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("add-roles")
     .setDescription("Adds roles to a member in the server.")
     .addUserOption((option) =>
-      option
-        .setName("name")
-        .setDescription("Select the member")
-        .setRequired(true)
+      option.setName("name").setDescription("Select the member").setRequired(true)
     )
     .addStringOption((option) =>
       option
@@ -71,9 +62,7 @@ module.exports = {
     const assignedGuild = interaction.options.getString("guild");
 
     // Find the member role in the server
-    const memberRole = guild.roles.cache.find(
-      (role) => role.name.toLowerCase() === "member"
-    );
+    const memberRole = guild.roles.cache.find((role) => role.name.toLowerCase() === "member");
 
     // Get the primary and secondary weapons from the input
     const weaponOne = interaction.options.getString("weapon1");
@@ -84,21 +73,14 @@ module.exports = {
     const weaponCombo2 = `${weaponTwo}/${weaponOne}`.toUpperCase();
 
     // Find the correct weapon role based on both combinations
-    let weaponRole = guild.roles.cache.find(
-      (role) => role.name.toUpperCase() === weaponCombo1
-    );
+    let weaponRole = guild.roles.cache.find((role) => role.name.toUpperCase() === weaponCombo1);
 
     if (!weaponRole) {
-      weaponRole = guild.roles.cache.find(
-        (role) => role.name.toUpperCase() === weaponCombo2
-      );
+      weaponRole = guild.roles.cache.find((role) => role.name.toUpperCase() === weaponCombo2);
     }
 
     // Check if the member already has the roles
-    if (
-      guildMember.roles.cache.has(memberRole.id) &&
-      guildMember.roles.cache.has(weaponRole.id)
-    ) {
+    if (guildMember.roles.cache.has(memberRole.id) && guildMember.roles.cache.has(weaponRole.id)) {
       return interaction.reply(
         `${newNickname} already has the 'member' and '${weaponRole.name}' roles.`
       );
@@ -112,13 +94,11 @@ module.exports = {
       // Change nickname in server
       await guildMember
         .setNickname(newNickname, "Needed a new nickname")
-        .then((member) =>
-          console.log(`Set nickname of ${member.user.username}`)
-        )
+        .then((member) => console.log(`Set nickname of ${member.user.username}`))
         .catch(console.error);
 
       // Check if the member exists in the database
-      let databaseMember = await Members.findOne({ memberId: member.id });
+      let databaseMember = await Member.findOne({ memberId: member.id });
 
       // If not, create a new member entry in the database
       if (!databaseMember) {
@@ -138,9 +118,7 @@ module.exports = {
         // Save the new member to the database
         await databaseMember.save();
 
-        const guildRole = guild.roles.cache.find(
-          (role) => role.id === assignedGuild
-        );
+        const guildRole = guild.roles.cache.find((role) => role.id === assignedGuild);
         guildMember.roles.add(guildRole);
       } else {
         console.log("Member already exists in the database");

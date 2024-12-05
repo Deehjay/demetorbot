@@ -1,11 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const {
-  logCommandIssuer,
-  hasAdminPrivileges,
-  demetoriIcon,
-} = require("../../utilities/utilities");
-const Members = require("../../models/Members");
+const { logCommandIssuer, demetoriIcon } = require("../../utilities/utilities");
+const Member = require("../../models/Member");
 const { guildOptions } = require("../../utilities/data");
+const { hasAdminPrivileges } = require("../../utilities/shared-utils");
 require("dotenv").config();
 
 module.exports = {
@@ -31,9 +28,7 @@ module.exports = {
         .addStringOption((option) =>
           option
             .setName("guild")
-            .setDescription(
-              "The guild you want to get the members' gear screenshots of"
-            )
+            .setDescription("The guild you want to get the members' gear screenshots of")
             .addChoices(...guildOptions)
             .setRequired(true)
         )
@@ -45,9 +40,7 @@ module.exports = {
         .addStringOption((option) =>
           option
             .setName("guild")
-            .setDescription(
-              "The guild you want to get the members' planner links of"
-            )
+            .setDescription("The guild you want to get the members' planner links of")
             .addChoices(...guildOptions)
             .setRequired(true)
         )
@@ -70,7 +63,7 @@ module.exports = {
     const selectedGuildRoleId = interaction.options.getString("guild");
 
     try {
-      const members = await Members.find({ guildRoleId: selectedGuildRoleId });
+      const members = await Member.find({ guildRoleId: selectedGuildRoleId });
       const membersByWeapons = {};
 
       // Group members by their weapon combinations
@@ -117,8 +110,7 @@ module.exports = {
         .setColor("#3498db")
         .setTitle(
           `Member List - ${
-            guildOptions.find((option) => option.value === selectedGuildRoleId)
-              .name
+            guildOptions.find((option) => option.value === selectedGuildRoleId).name
           }`
         )
         .setDescription(description)
