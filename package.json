@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "deploy": "node deploy-commands.js",
+    "initialise": "node index.js",
+    "start": "npm run deploy && npm run initialise"
   },
   "repository": {
     "type": "git",
