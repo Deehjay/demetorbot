@@ -85,16 +85,11 @@ const eventNameChoices = [
 const eventThumbnails = {
   "Field Boss":
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/WM_FB_ElderTurncoat_Target.png",
-  Riftstone:
-    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/riftstone.png",
-  Boonstone:
-    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/boonstone1.png",
-  "Castle Siege":
-    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/castle.png",
-  "Guild Bosses":
-    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/guild-base.png",
-  Archboss:
-    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/archboss.png",
+  Riftstone: "https://throne-and-liberty.interactivemap.app/admin/assets/icons/riftstone.png",
+  Boonstone: "https://throne-and-liberty.interactivemap.app/admin/assets/icons/boonstone1.png",
+  "Castle Siege": "https://throne-and-liberty.interactivemap.app/admin/assets/icons/castle.png",
+  "Guild Bosses": "https://throne-and-liberty.interactivemap.app/admin/assets/icons/guild-base.png",
+  Archboss: "https://throne-and-liberty.interactivemap.app/admin/assets/icons/archboss.png",
   "Guild Event":
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/dynamic-event.png",
   "Tax Delivery":
@@ -128,6 +123,7 @@ const guildLookup = {
 const eventChannelLookup = {
   Mandatory: "1302006182155915396",
   "Non-mandatory": "1311058683622330419",
+  test: "1312183863673622558",
 };
 
 const weaponOptions = [
