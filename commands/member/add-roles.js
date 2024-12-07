@@ -102,7 +102,7 @@ module.exports = {
 
       // If not, create a new member entry in the database
       if (!databaseMember) {
-        databaseMember = new Members({
+        databaseMember = new Member({
           memberId: member.id,
           discordUsername: member.username,
           discordDisplayName: member.globalName,
