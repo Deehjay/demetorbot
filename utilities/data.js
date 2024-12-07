@@ -7,6 +7,7 @@ const eventTypeChoices = [
   { name: "Castle Siege", value: "Castle Siege" },
   { name: "Guild Event", value: "Guild Event" },
   { name: "Tax Delivery", value: "Tax Delivery" },
+  { name: "Inter-Server", value: "Inter-Server" },
 ];
 
 const eventNameChoices = [
@@ -80,6 +81,9 @@ const eventNameChoices = [
 
   // Guild Event
   { name: "Guild Event", value: "Guild Event" },
+
+  // Inter-Server Events
+  { name: "Inter-Server Event", value: "Inter-Server Event" },
 ];
 
 const eventThumbnails = {
@@ -94,6 +98,8 @@ const eventThumbnails = {
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/dynamic-event.png",
   "Tax Delivery":
     "https://throne-and-liberty.interactivemap.app/admin/assets/icons/tax-collector1.png",
+  "Inter-Server":
+    "https://throne-and-liberty.interactivemap.app/admin/assets/icons/mystic-portal1.png",
 };
 
 const eventImages = {
@@ -105,6 +111,7 @@ const eventImages = {
   Archboss: "https://i.imgur.com/vsjnX1w.png",
   "Guild Event": "https://i.imgur.com/vGxe6B7.png",
   "Tax Delivery": "https://i.imgur.com/ka4Yz55.png",
+  "Inter-Server": "https://i.imgur.com/iQi4ryk.png",
 };
 
 const backupEmbedImage = "https://i.imgur.com/iNR6sxc.png";
@@ -134,6 +141,7 @@ const weaponOptions = [
   { name: "WAND", value: "WAND" },
   { name: "DAGGER", value: "DAGGER" },
   { name: "XBOW", value: "XBOW" },
+  { name: "SPEAR", value: "SPEAR" },
 ];
 
 const wishlistItemChoices = [
