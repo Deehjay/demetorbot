@@ -140,7 +140,9 @@ module.exports = {
     );
     // <@&1297834278549192735> - Member
     const message = await scheduleChannel.send({
-      content: `**NEW ${isMandatory ? "MANDATORY" : "NON-MANDATORY"} EVENT:**\n`,
+      content: `<@&1297834278549192735> **NEW ${
+        isMandatory ? "MANDATORY" : "NON-MANDATORY"
+      } EVENT:**\n`,
       embeds: [eventEmbed],
       components: [reactionButtonsRow],
       fetchReply: true,
